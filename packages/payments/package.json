@@ -1,0 +1,62 @@
+{
+  "name": "@ambosstech/payments",
+  "version": "0.0.1",
+  "description": "Amboss Payments SDK: webhook verification, environments, wallets, transactions",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ambosstech/ambosstech-sdk.git",
+    "directory": "packages/payments"
+  },
+  "homepage": "https://github.com/ambosstech/ambosstech-sdk/tree/main/packages/payments",
+  "bugs": "https://github.com/ambosstech/ambosstech-sdk/issues",
+  "keywords": [
+    "amboss",
+    "lightning",
+    "bitcoin",
+    "payments",
+    "webhook",
+    "sdk"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
+    "codegen": "graphql-codegen --config codegen.ts"
+  },
+  "dependencies": {
+    "@ambosstech/core": "workspace:*",
+    "graphql": "^16.10.0",
+    "graphql-request": "^7.1.2"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.3",
+    "@graphql-codegen/typescript": "^4.1.2",
+    "@graphql-codegen/typescript-graphql-request": "^6.2.0",
+    "@graphql-codegen/typescript-operations": "^4.4.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}

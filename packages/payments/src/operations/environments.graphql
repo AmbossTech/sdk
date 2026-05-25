@@ -1,0 +1,46 @@
+fragment PaymentsEnvironmentFields on PaymentsEnvironment {
+  id
+  name
+  type
+  wallet_count
+  created_at
+  updated_at
+}
+
+query ListEnvironments {
+  payment {
+    environment {
+      list {
+        ...PaymentsEnvironmentFields
+      }
+    }
+  }
+}
+
+query GetEnvironment($id: String!) {
+  payment {
+    environment {
+      get(id: $id) {
+        ...PaymentsEnvironmentFields
+      }
+    }
+  }
+}
+
+mutation CreateEnvironment($input: CreatePaymentsEnvironmentInput!) {
+  payment {
+    environment {
+      create(input: $input) {
+        ...PaymentsEnvironmentFields
+      }
+    }
+  }
+}
+
+mutation DeleteEnvironment($id: String!) {
+  payment {
+    environment {
+      delete(id: $id)
+    }
+  }
+}

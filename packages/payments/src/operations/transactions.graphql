@@ -1,0 +1,28 @@
+fragment PaymentsTransactionFields on PaymentsTransaction {
+  id
+  wallet_id
+  node_id
+  idempotency_key
+  direction
+  status
+  amount
+  fee
+  payment_hash
+  payment_request
+  description
+  error
+  expires_at
+  settled_at
+  created_at
+  updated_at
+}
+
+mutation CreateReceiveTransaction($input: CreateReceiveTransactionInput!) {
+  payment {
+    transaction {
+      create_receive(input: $input) {
+        ...PaymentsTransactionFields
+      }
+    }
+  }
+}

@@ -1,0 +1,61 @@
+fragment PaymentsWalletFields on PaymentsWallet {
+  id
+  name
+  asset_id
+  environment_id
+  created_at
+  updated_at
+  balance {
+    balance
+    received
+    sent
+  }
+}
+
+query ListWallets($environmentId: String!) {
+  payment {
+    wallet {
+      list(environment_id: $environmentId) {
+        ...PaymentsWalletFields
+      }
+    }
+  }
+}
+
+query GetWallet($id: String!) {
+  payment {
+    wallet {
+      get(id: $id) {
+        ...PaymentsWalletFields
+      }
+    }
+  }
+}
+
+mutation CreateWallet($input: CreatePaymentsWalletInput!) {
+  payment {
+    wallet {
+      create(input: $input) {
+        ...PaymentsWalletFields
+      }
+    }
+  }
+}
+
+mutation AddNodeToWallet($input: AddNodeToWalletInput!) {
+  payment {
+    wallet {
+      add_node(input: $input) {
+        ...PaymentsWalletFields
+      }
+    }
+  }
+}
+
+mutation DeleteWallet($id: String!) {
+  payment {
+    wallet {
+      delete(id: $id)
+    }
+  }
+}

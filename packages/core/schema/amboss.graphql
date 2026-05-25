@@ -1,0 +1,1028 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type AccountBalance {
+  balances: [Balances!]!
+  financial_changes: FinancialChanges!
+  id: String!
+}
+
+type AccountInfo {
+  company_name: String
+  first_name: String
+  id: String!
+  last_name: String
+  location: String
+  us_state: String
+}
+
+input AddNodeToWalletInput {
+  node_id: String!
+  wallet_id: String!
+}
+
+input AddPartnerNodeInput {
+  node_id: String!
+  pubkey: String!
+}
+
+enum AggregateInterval {
+  MONTH
+  WEEK
+  YEAR
+}
+
+type AssetBalance {
+  amount: BitcoinAssetAmount!
+  id: String!
+}
+
+type AssetBalances {
+  asset: BitcoinAsset!
+  channel_balance: AssetBalance!
+  id: String!
+  is_automated: Boolean!
+  onchain_balance: AssetBalance!
+  percentage: Float!
+  quotes: AssetOracleQuotes
+  total_balance: AssetBalance!
+}
+
+type AssetOracleQuotes {
+  ask: BitcoinAssetAmount
+  bid: BitcoinAssetAmount
+  id: String!
+}
+
+type AvailableTaprootAsset {
+  group_key: String
+  id: String!
+  symbol: String!
+  universe: String!
+}
+
+type BalanceChart {
+  chart: [BalancePeriod!]!
+  id: String!
+  interval: AggregateInterval!
+}
+
+type BalancePeriod {
+  balance: SatoshiAmount!
+  id: String!
+  period: String!
+}
+
+type Balances {
+  alltime_leasing_revenue: SatoshiAmount!
+  alltime_onchain_costs: SatoshiAmount!
+  alltime_routing_revenue: SatoshiAmount!
+  available: SatoshiAmount!
+  balance: SatoshiAmount!
+  created_at: String!
+  earnings: SatoshiAmount!
+  id: String!
+  principal: SatoshiAmount!
+  reserved: SatoshiAmount!
+}
+
+type BitcoinAsset {
+  description: String
+  id: String!
+  precision: Float!
+  prices: BitcoinAssetPrices!
+  symbol: String!
+  taproot_asset_details: TaprootAssetDetails
+  type: BitcoinAssetType!
+  website_url: String
+}
+
+type BitcoinAssetAmount {
+  display_amount: String!
+  full_amount: String!
+  id: String!
+  value: BitcoinAssetValue!
+}
+
+type BitcoinAssetPrices {
+  id: String!
+  usd: String!
+}
+
+enum BitcoinAssetType {
+  BASE_ASSET
+  TAPROOT_ASSET
+}
+
+type BitcoinAssetValue {
+  id: String!
+  usd_value: String!
+}
+
+type Charts {
+  balance: BalanceChart!
+  id: String!
+  revenue: RevenueChart!
+}
+
+type CheckPasswordResult {
+  success: Boolean!
+}
+
+input ConnectLITDInput {
+  grpc: String!
+  management_macaroon: String!
+  rest: String!
+  taproot_assets: Boolean
+  tls_cert: String
+}
+
+input ConnectLNDInput {
+  grpc: String!
+  management_macaroon: String!
+  rest: String!
+  tls_cert: String
+}
+
+input CreateInvoiceInput {
+  amount_sats: String
+  asset_amount: String
+  description: String
+  expires_at: String
+  group_key: String
+  node_id: String!
+  peer_pubkey: String
+  swap_node_pubkey: String
+}
+
+type CreateInvoiceResult {
+  id: String!
+  payment_request: String!
+}
+
+input CreatePaymentsEnvironmentInput {
+  name: String!
+  type: PaymentsEnvironmentType!
+}
+
+input CreatePaymentsWalletInput {
+  asset_id: String!
+  environment_id: String!
+  name: String!
+}
+
+input CreateReceiveTransactionInput {
+  amount: String!
+  description: String
+  expires_in: Int
+  idempotency_key: String!
+  wallet_id: String!
+}
+
+input CreateServiceApiKeyInput {
+  environment_id: String!
+
+  """
+  ISO date string. If omitted, the key never expires.
+  """
+  expires_at: String
+  name: String!
+  node_id: String
+  permissions: [ServiceApiKeyPermissionInput!]!
+  wallet_id: String
+}
+
+type CreateServiceApiKeyResult {
+  key: ServiceApiKey!
+  plaintext_key: String!
+}
+
+type CredentialMutations {
+  store_admin(input: StoreAdminCredentialsInput!): Boolean!
+  store_management(input: StoreManagementCredentialsInput!): Boolean!
+}
+
+type DeployManagedNode {
+  success: Boolean!
+}
+
+type DeployedNode {
+  alias: String
+  backup: NodeBackup
+  created_at: String!
+  credentials: NodeMacaroonList!
+  deactivation_initiated: String
+  deleted_at: String
+  funds_available_at: String!
+  id: String!
+  is_automated: Boolean!
+  node_type: ManagedNodeType!
+  partners: PartnerNodeList!
+  password: String!
+  pubkey: String
+  sockets: NodeSockets!
+  state: DeployedNodeState!
+  taproot_assets_enabled: Boolean!
+  type: DeployedNodeType!
+  withdrawal_target: String!
+}
+
+enum DeployedNodeMacaroonLocation {
+  LITD
+  LND
+  TAPD
+}
+
+enum DeployedNodeState {
+  ACTIVE
+  CREATED
+  DELETED
+  DELETION_INITIATED
+  WAITING_FOR_ACTIVATION
+  WAITING_FOR_CREDENTIALS
+  WAITING_FOR_DEPOSIT
+  WAITING_FOR_INIT
+}
+
+enum DeployedNodeType {
+  LP
+  P2P_TRADE
+  PAYMENTS
+}
+
+type DepositStats {
+  first_deposit: String
+  id: String!
+}
+
+input DisableTaprootAssetsInput {
+  node_id: String!
+}
+
+type DisableTaprootAssetsResult {
+  success: Boolean!
+}
+
+input EnableTaprootAssetsInput {
+  grpc: String
+  node_id: String!
+  rest: String
+}
+
+type EnableTaprootAssetsResult {
+  success: Boolean!
+}
+
+type EnvironmentMutations {
+  create(input: CreatePaymentsEnvironmentInput!): PaymentsEnvironment!
+  delete(id: String!): Boolean!
+  id: String!
+}
+
+type EnvironmentQueries {
+  get(id: String!): PaymentsEnvironment!
+  id: String!
+  list: [PaymentsEnvironment!]!
+}
+
+type ExpectedPermissions {
+  id: String!
+  lnd: LndPermissions!
+}
+
+type FinancialChanges {
+  id: String!
+  leasing_revenue_change: SatoshiAmount!
+  onchain_costs_change: SatoshiAmount!
+  routing_revenue_change: SatoshiAmount!
+}
+
+type Funds {
+  available: SatoshiAmount!
+  earnings: SatoshiAmount!
+  id: String!
+  reserved: SatoshiAmount!
+  total: SatoshiAmount!
+}
+
+input IncreaseWithdrawalInput {
+  amount_sats: String!
+  node_id: String!
+  password_hash: String
+}
+
+type LiquidityProvider {
+  assets: LiquidityProviderAssets
+  balances: AccountBalance!
+  charts: Charts!
+  funds: Funds!
+  id: String!
+  node_id: String!
+  revenue: Revenue!
+  stats: Stats!
+  total_value: TotalValue!
+  transaction_list(input: TransactionInput): TransactionList!
+}
+
+type LiquidityProviderAsset {
+  balances: [AssetBalances!]!
+  id: String!
+}
+
+type LiquidityProviderAssets {
+  id: String!
+  list: LiquidityProviderAsset!
+}
+
+input LiquidityProviderInput {
+  from: String
+  node_id: String
+  to: String
+}
+
+type LiquidityStats {
+  id: String!
+  partners: Float!
+  provided_liquidity: String!
+  sales: Float!
+}
+
+type LitdSockets {
+  grpc: String!
+  id: String!
+  rest: String!
+}
+
+type LndPermissions {
+  default: [String!]!
+  id: String!
+  p2p_trade: [String!]!
+  taproot_assets: [String!]!
+}
+
+type LndSockets {
+  grpc: String!
+  id: String!
+  rest: String!
+}
+
+enum MacaroonEncryptionType {
+  CLIENT
+  SERVER
+}
+
+enum MacaroonType {
+  ADMIN
+  MANAGEMENT
+  SUPERADMIN
+}
+
+enum ManagedNodeType {
+  FULLY_MANAGED
+  THIRD_PARTY
+}
+
+type Mutation {
+  credentials: CredentialMutations!
+  node: NodeMutations!
+  payment: PaymentMutations!
+  service_api_key: ServiceApiKeyMutations!
+  user: UserMutations!
+}
+
+type NodeAssetMutations {
+  disable_taproot_assets(input: DisableTaprootAssetsInput!): DisableTaprootAssetsResult!
+  enable_taproot_assets(input: EnableTaprootAssetsInput!): EnableTaprootAssetsResult!
+  set_asset_config(input: SetAutomatedAssetInput!): SetAssetConfigResult!
+}
+
+type NodeBackup {
+  created_at: String!
+  id: String!
+  latest: String!
+  size: Float!
+}
+
+type NodeChangeSettings {
+  new_alias: String
+}
+
+input NodeConnectInput {
+  litd: ConnectLITDInput
+  lnd: ConnectLNDInput
+  node_type: DeployedNodeType! = LP
+}
+
+type NodeConnection {
+  node_id: String!
+  success: Boolean!
+}
+
+type NodeDeactivation {
+  success: Boolean!
+}
+
+input NodeDeactivationInput {
+  node_id: String!
+  password_hash: String
+}
+
+type NodeInvoice {
+  create(input: CreateInvoiceInput!): CreateInvoiceResult!
+}
+
+type NodeMacaroon {
+  encryption_type: MacaroonEncryptionType!
+  id: String!
+  is_admin: Boolean!
+  location: DeployedNodeMacaroonLocation!
+  macaroon: String!
+  macaroon_type: MacaroonType!
+  permissions: [String!]
+}
+
+type NodeMacaroonList {
+  id: String!
+  list: [NodeMacaroon!]!
+}
+
+type NodeMutations {
+  activate(node_id: String!): NodeSubscription!
+  asset: NodeAssetMutations!
+  change_settings(input: NodeSettingsInput!): NodeChangeSettings!
+  connect(input: NodeConnectInput!): NodeConnection!
+  deactivate(input: NodeDeactivationInput!): NodeDeactivation!
+  deploy(type: String! = "LP"): DeployManagedNode!
+  invoices: NodeInvoice!
+  partners: NodePartners!
+  withdrawal: NodeWithdrawal!
+}
+
+type NodePartners {
+  add(input: AddPartnerNodeInput!): PartnerNode!
+  remove(input: RemovePartnerNodeInput!): Boolean!
+}
+
+type NodeQueries {
+  deployed_node(node_id: String!): DeployedNode!
+  deployed_nodes: [DeployedNode!]!
+  id: String!
+}
+
+input NodeSettingsInput {
+  alias: String
+  node_id: String!
+}
+
+type NodeSockets {
+  id: String!
+  litd: LitdSockets
+  lnd: LndSockets
+}
+
+type NodeSubscription {
+  external_url: String
+  success: Boolean!
+}
+
+type NodeWithdrawal {
+  increase_withdrawal_target(input: IncreaseWithdrawalInput!): NodeWithdrawalResult!
+}
+
+type NodeWithdrawalResult {
+  amount: String!
+}
+
+input OfferInput {
+  asset_id: String
+  min_amount: String
+  page: PageInput
+  sort_by: OfferSortBy
+  sort_dir: SortDirection
+  transaction_type: SwapTransactionType!
+}
+
+enum OfferSortBy {
+  AVAILABLE
+  RATE
+}
+
+input PageInput {
+  limit: Float!
+  offset: Float!
+}
+
+type Pagination {
+  limit: Float!
+  offset: Float!
+}
+
+type PartnerNode {
+  id: String!
+  node: SimpleNode!
+}
+
+type PartnerNodeList {
+  id: String!
+  list: [PartnerNode!]!
+}
+
+type PaymentMutations {
+  environment: EnvironmentMutations!
+  id: String!
+  transaction: TransactionMutations!
+  wallet: WalletMutations!
+}
+
+type PaymentQueries {
+  environment: EnvironmentQueries!
+  id: String!
+  wallet: WalletQueries!
+}
+
+type PaymentsEnvironment {
+  created_at: String!
+  id: String!
+  name: String!
+  type: PaymentsEnvironmentType!
+  updated_at: String!
+  wallet_count: Int!
+}
+
+enum PaymentsEnvironmentType {
+  LIVE
+  SANDBOX
+}
+
+type PaymentsTransaction {
+  amount: String!
+  created_at: String!
+  description: String
+  direction: PaymentsTransactionDirection!
+  error: String
+  expires_at: String
+  fee: String
+  id: String!
+  idempotency_key: String!
+  node_id: String!
+  payment_hash: String
+  payment_request: String
+  settled_at: String
+  status: PaymentsTransactionStatus!
+  updated_at: String!
+  wallet_id: String!
+}
+
+enum PaymentsTransactionDirection {
+  RECEIVE
+  SEND
+}
+
+enum PaymentsTransactionStatus {
+  COMPLETED
+  EXPIRED
+  FAILED
+  PENDING
+}
+
+type PaymentsWallet {
+  asset: BitcoinAsset!
+  asset_id: String!
+  balance: PaymentsWalletBalance!
+  created_at: String!
+  environment: PaymentsEnvironment!
+  environment_id: String!
+  id: String!
+  name: String!
+  nodes: [DeployedNode!]!
+  updated_at: String!
+}
+
+type PaymentsWalletBalance {
+  balance: String!
+  received: String!
+  sent: String!
+}
+
+type PermissionCommandsLnd {
+  default: String!
+  id: String!
+  p2p_trade: String!
+  taproot_assets: String!
+}
+
+type PermissionQueries {
+  expected_permissions: ExpectedPermissions!
+  id: String!
+  permission_commands: PermissionsCommand!
+}
+
+type PermissionsCommand {
+  id: String!
+  lnd: PermissionCommandsLnd!
+}
+
+type PublicAssetQueries {
+  id: String!
+  supported(input: SupportedAssetsInput): SupportedAssetList!
+}
+
+type PublicQueries {
+  assets: PublicAssetQueries!
+  id: String!
+  offers(input: OfferInput!): TradeOfferList!
+  quote(input: QuoteInput!): TradeQuote!
+}
+
+type Query {
+  hello: String!
+  node: NodeQueries!
+  payment: PaymentQueries!
+  permissions: PermissionQueries!
+  public: PublicQueries!
+  service_api_keys: ServiceApiKeyQueries!
+  subscriptions: SubscriptionQueries!
+  taproot_assets: TaprootAssetsQuery!
+  trade: TradeQueries!
+  user: User!
+}
+
+input QuoteInput {
+  asset_id: String!
+  pubkey: String!
+  transaction_type: SwapTransactionType!
+}
+
+input RailsTxnsExportInput {
+  node_id: String!
+  year: Float!
+}
+
+type RailsTxnsExportResult {
+  message: String!
+  success: Boolean!
+}
+
+input RemovePartnerNodeInput {
+  node_id: String!
+  partner_id: String!
+}
+
+type Revenue {
+  id: String!
+  liquidity: SatoshiAmount!
+  routing: SatoshiAmount!
+}
+
+type RevenueChart {
+  chart: [RevenuePeriod!]!
+  id: String!
+  interval: AggregateInterval!
+}
+
+type RevenuePeriod {
+  id: String!
+  liquidity: SatoshiAmount!
+  period: String!
+  routing: SatoshiAmount!
+}
+
+type RoutingStats {
+  id: String!
+  payment_count: Float!
+  payment_value: SatoshiAmount!
+}
+
+type SatoshiAmount {
+  id: String!
+  sats: String!
+  usd: Float!
+}
+
+type ServiceApiKey {
+  active: Boolean!
+  created_at: String!
+  environment_id: String
+  expires_at: String
+  id: String!
+  key_prefix: String!
+  key_suffix: String!
+  last_used_at: String
+  name: String!
+  node_id: String
+  permissions: [ServiceApiKeyPermissionEntry!]!
+  wallet_id: String
+}
+
+type ServiceApiKeyGetMany {
+  id: String!
+  list: [ServiceApiKey!]!
+}
+
+type ServiceApiKeyMutations {
+  create(input: CreateServiceApiKeyInput!): CreateServiceApiKeyResult!
+  id: String!
+  revoke(id: String!): ServiceApiKey!
+  update(id: String!, input: UpdateServiceApiKeyInput!): ServiceApiKey!
+}
+
+type ServiceApiKeyPermissionEntry {
+  level: ServiceApiKeyPermissionLevel!
+  resource: ServiceApiKeyPermissionResource!
+}
+
+input ServiceApiKeyPermissionInput {
+  level: ServiceApiKeyPermissionLevel!
+  resource: ServiceApiKeyPermissionResource!
+}
+
+enum ServiceApiKeyPermissionLevel {
+  READ
+  WRITE
+}
+
+enum ServiceApiKeyPermissionResource {
+  ENVIRONMENTS
+  PAYMENTS
+  WALLETS
+}
+
+type ServiceApiKeyQueries {
+  get_many: ServiceApiKeyGetMany!
+  id: String!
+}
+
+type SetAssetConfigResult {
+  success: Boolean!
+}
+
+input SetAutomatedAssetInput {
+  asset_id: String!
+  enabled: Boolean!
+  node_id: String!
+}
+
+type SimpleNode {
+  alias: String
+  id: String!
+  pubkey: String!
+  sockets: [String!]!
+}
+
+enum SortDirection {
+  ASC
+  DESC
+}
+
+type Stats {
+  deposits: DepositStats!
+  id: String!
+  liquidity: LiquidityStats!
+  routing: RoutingStats!
+}
+
+input StoreAdminCredentialsInput {
+  encrypted_macaroon: String!
+  location: DeployedNodeMacaroonLocation
+  macaroon_type: MacaroonType
+  node_id: String!
+  permissions: [String!]!
+}
+
+input StoreManagementCredentialsInput {
+  macaroon: String!
+  macaroon_type: MacaroonType
+  node_id: String!
+  p2p_trade: Boolean
+  taproot_assets: Boolean
+}
+
+type StorePasswordResult {
+  success: Boolean!
+}
+
+type StripeCardMethod {
+  brand: String!
+  country: String!
+  exp_month: Float!
+  exp_year: Float!
+  fingerprint: String!
+  last4: String!
+}
+
+type StripeInfo {
+  default_payment_method: StripePaymentMethod
+  id: String!
+  payment_methods: [StripePaymentMethod!]!
+}
+
+type StripePaymentMethod {
+  card: StripeCardMethod
+  created_at: String!
+  id: String!
+  type: String!
+}
+
+type SubscriptionQueries {
+  id: String!
+  quote(node_id: String!): SubscriptionQuote!
+}
+
+type SubscriptionQuote {
+  aum: String!
+  id: String!
+  monthly_fixed_fee_usd: Float!
+  monthly_variable_fee_usd: Float!
+  node_id: String!
+}
+
+type SupportedAssetList {
+  id: String!
+  list: [BitcoinAsset!]!
+  pagination: Pagination!
+  total_count: Int!
+}
+
+input SupportedAssetsInput {
+  page: PageInput
+}
+
+enum SwapTransactionType {
+  PURCHASE
+  SALE
+}
+
+type TaprootAssetDetails {
+  asset_id: String
+  group_key: String
+  universe: String
+}
+
+type TaprootAssetsQuery {
+  id: String!
+  list: [AvailableTaprootAsset!]!
+}
+
+type Team {
+  encrypted_symmetric_key: String
+  id: String!
+  members: [TeamMember!]!
+  password_hash: String
+}
+
+type TeamMember {
+  email: String
+  id: String!
+  is_master: Boolean!
+}
+
+type TermsOfService {
+  date: String!
+}
+
+type TotalValue {
+  asset_value: String!
+  btc_value: String!
+  id: String!
+  total: String!
+}
+
+type TradeOffer {
+  asset: BitcoinAsset!
+  available: BitcoinAssetAmount!
+  fees: TradeOfferFees!
+  id: String!
+  magma_offer_id: String!
+  max_order: BitcoinAssetAmount!
+  min_order: BitcoinAssetAmount!
+  node: SimpleNode!
+  rate: BitcoinAssetAmount!
+}
+
+type TradeOfferFees {
+  base_fee_sats: Int!
+  fee_rate_ppm: Int!
+}
+
+type TradeOfferList {
+  id: String!
+  list: [TradeOffer!]!
+  pagination: Pagination!
+  total_count: Int!
+}
+
+type TradeQueries {
+  id: String!
+  offers(input: OfferInput!): TradeOfferList!
+}
+
+type TradeQuote {
+  asset: BitcoinAsset!
+  expires: String!
+  id: String!
+  node: SimpleNode!
+  rate: BitcoinAssetAmount!
+}
+
+type Transaction {
+  amount: SatoshiAmount!
+  confirmed: Boolean!
+  cost_basis: String!
+  date: String!
+  fee: SatoshiAmount
+  id: String!
+  metadata: TransactionMetadata!
+  status: TransactionStatus!
+  type: TransactionType!
+}
+
+input TransactionInput {
+  page: PageInput
+  tx_types: [TransactionType!]
+}
+
+type TransactionList {
+  id: String!
+  list: [Transaction!]!
+  pagination: Pagination!
+  total_count: Float!
+}
+
+type TransactionMetadata {
+  amount_routed: SatoshiAmount
+  id: String!
+  type: String!
+}
+
+type TransactionMutations {
+  create_receive(input: CreateReceiveTransactionInput!): PaymentsTransaction!
+  id: String!
+}
+
+enum TransactionStatus {
+  RECEIVED
+  SENT
+}
+
+enum TransactionType {
+  CHANNEL_CLOSE
+  CHANNEL_OPEN
+  CHANNEL_PURCHASE
+  CHANNEL_SALE
+  DEPOSIT
+  ROUTING
+  WITHDRAW
+}
+
+input UpdateServiceApiKeyInput {
+  name: String!
+}
+
+type User {
+  email: String
+  has_access: Boolean!
+  id: String!
+  is_master: Boolean!
+  is_team: Boolean!
+  liquidity_provider(input: LiquidityProviderInput): LiquidityProvider
+  stripe: StripeInfo
+  team: Team!
+  terms_of_service: TermsOfService
+  verification_info: VerificationInfo!
+}
+
+type UserMutations {
+  accept_terms_of_service: TermsOfService!
+  check_team_password(password_hash: String!): CheckPasswordResult!
+  request_transaction_export(input: RailsTxnsExportInput!): RailsTxnsExportResult!
+  store_team_password_and_keys(
+    encrypted_symmetric_key: String!
+    password_hash: String!
+  ): StorePasswordResult!
+}
+
+type VerificationInfo {
+  account_info: AccountInfo
+  id: String!
+  status: VerificationStatus!
+}
+
+enum VerificationStatus {
+  COMPLETED
+  IN_PROGRESS
+  NOT_COMPLETED
+}
+
+type WalletMutations {
+  add_node(input: AddNodeToWalletInput!): PaymentsWallet!
+  create(input: CreatePaymentsWalletInput!): PaymentsWallet!
+  delete(id: String!): Boolean!
+  id: String!
+}
+
+type WalletQueries {
+  get(id: String!): PaymentsWallet!
+  id: String!
+  list(environment_id: String!): [PaymentsWallet!]!
+}

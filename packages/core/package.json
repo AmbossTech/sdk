@@ -1,0 +1,51 @@
+{
+  "name": "@ambosstech/core",
+  "version": "0.0.1",
+  "description": "Shared client and HTTP/GraphQL transport for Amboss SDKs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ambosstech/ambosstech-sdk.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ambosstech/ambosstech-sdk/tree/main/packages/core",
+  "bugs": "https://github.com/ambosstech/ambosstech-sdk/issues",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": "./schema/amboss.graphql"
+  },
+  "files": [
+    "dist",
+    "src",
+    "schema"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
+    "refresh-schema": "tsx scripts/refresh-schema.ts"
+  },
+  "dependencies": {
+    "graphql": "^16.10.0",
+    "graphql-request": "^7.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}
