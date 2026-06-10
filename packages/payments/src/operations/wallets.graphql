@@ -10,6 +10,29 @@ fragment PaymentsWalletFields on PaymentsWallet {
     received
     sent
   }
+  asset {
+    id
+    symbol
+    precision
+    type
+    description
+    website_url
+    taproot_asset_details {
+      asset_id
+      group_key
+      universe
+    }
+  }
+  environment {
+    ...PaymentsEnvironmentFields
+  }
+  nodes {
+    id
+    alias
+    pubkey
+    state
+    type
+  }
 }
 
 query ListWallets($environmentId: String!) {

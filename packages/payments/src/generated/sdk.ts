@@ -1240,35 +1240,35 @@ export type CreateReceiveTransactionMutationVariables = Exact<{
 
 export type CreateReceiveTransactionMutation = { payment: { transaction: { create_receive: { id: string, wallet_id: string, node_id: string, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount: string, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string } } } };
 
-export type PaymentsWalletFieldsFragment = { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string } };
+export type PaymentsWalletFieldsFragment = { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> };
 
 export type ListWalletsQueryVariables = Exact<{
   environmentId: Scalars['String']['input'];
 }>;
 
 
-export type ListWalletsQuery = { payment: { wallet: { list: Array<{ id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string } }> } } };
+export type ListWalletsQuery = { payment: { wallet: { list: Array<{ id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> }> } } };
 
 export type GetWalletQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetWalletQuery = { payment: { wallet: { get: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string } } } } };
+export type GetWalletQuery = { payment: { wallet: { get: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
 
 export type CreateWalletMutationVariables = Exact<{
   input: CreatePaymentsWalletInput;
 }>;
 
 
-export type CreateWalletMutation = { payment: { wallet: { create: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string } } } } };
+export type CreateWalletMutation = { payment: { wallet: { create: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
 
 export type AddNodeToWalletMutationVariables = Exact<{
   input: AddNodeToWalletInput;
 }>;
 
 
-export type AddNodeToWalletMutation = { payment: { wallet: { add_node: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string } } } } };
+export type AddNodeToWalletMutation = { payment: { wallet: { add_node: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
 
 export type DeleteWalletMutationVariables = Exact<{
   id: Scalars['String']['input'];
@@ -1277,16 +1277,6 @@ export type DeleteWalletMutationVariables = Exact<{
 
 export type DeleteWalletMutation = { payment: { wallet: { delete: boolean } } };
 
-export const PaymentsEnvironmentFieldsFragmentDoc = `
-    fragment PaymentsEnvironmentFields on PaymentsEnvironment {
-  id
-  name
-  type
-  wallet_count
-  created_at
-  updated_at
-}
-    `;
 export const PaymentsTransactionFieldsFragmentDoc = `
     fragment PaymentsTransactionFields on PaymentsTransaction {
   id
@@ -1307,6 +1297,16 @@ export const PaymentsTransactionFieldsFragmentDoc = `
   updated_at
 }
     `;
+export const PaymentsEnvironmentFieldsFragmentDoc = `
+    fragment PaymentsEnvironmentFields on PaymentsEnvironment {
+  id
+  name
+  type
+  wallet_count
+  created_at
+  updated_at
+}
+    `;
 export const PaymentsWalletFieldsFragmentDoc = `
     fragment PaymentsWalletFields on PaymentsWallet {
   id
@@ -1320,8 +1320,31 @@ export const PaymentsWalletFieldsFragmentDoc = `
     received
     sent
   }
+  asset {
+    id
+    symbol
+    precision
+    type
+    description
+    website_url
+    taproot_asset_details {
+      asset_id
+      group_key
+      universe
+    }
+  }
+  environment {
+    ...PaymentsEnvironmentFields
+  }
+  nodes {
+    id
+    alias
+    pubkey
+    state
+    type
+  }
 }
-    `;
+    ${PaymentsEnvironmentFieldsFragmentDoc}`;
 export const ListEnvironmentsDocument = `
     query ListEnvironments {
   payment {
