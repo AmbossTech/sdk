@@ -15,10 +15,7 @@
     "test": "pnpm --filter @ambosstech/core run build && pnpm -r --filter \"./packages/*\" run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "clean": "pnpm -r --filter \"./packages/*\" run clean",
-    "changeset": "changeset",
-    "changeset:version": "changeset version",
-    "changeset:publish": "pnpm -r --filter \"./packages/*\" run build && changeset publish"
+    "clean": "pnpm -r --filter \"./packages/*\" run clean"
   },
   "prettier": {
     "singleQuote": true,
@@ -28,7 +25,6 @@
     "semi": true
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.11",
     "@types/node": "^22.10.0",
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
