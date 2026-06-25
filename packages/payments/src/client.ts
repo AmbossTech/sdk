@@ -22,19 +22,19 @@ export class Payments extends AmbossClient {
   }
 
   get environments(): Environments {
-    this.requireApiKey('payments.environments');
+    this.requireServiceApiKey('payments.environments');
     this.#environments ??= new Environments(this.graphqlClient);
     return this.#environments;
   }
 
   get wallets(): Wallets {
-    this.requireApiKey('payments.wallets');
+    this.requireServiceApiKey('payments.wallets');
     this.#wallets ??= new Wallets(this.graphqlClient);
     return this.#wallets;
   }
 
   get transactions(): Transactions {
-    this.requireApiKey('payments.transactions');
+    this.requireServiceApiKey('payments.transactions');
     this.#transactions ??= new Transactions(this.graphqlClient);
     return this.#transactions;
   }
