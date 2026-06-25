@@ -35,7 +35,11 @@ export interface SendAssetPaymentBody {
     fee_limit_sat: string;
     timeout_seconds: number;
   };
-  /** Asset group key — identifies which asset to spend on the asset channel. */
+  /**
+   * Asset group key — identifies which asset to spend on the asset channel.
+   * base64-encoded bytes (litd's REST gateway decodes this to the raw 33-byte
+   * compressed pubkey), NOT hex. See `hexGroupKeyToBase64` in transactions.ts.
+   */
   group_key?: string;
 }
 

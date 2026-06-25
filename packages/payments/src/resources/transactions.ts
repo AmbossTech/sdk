@@ -17,6 +17,18 @@ import type { SendDestination, SendParams, SendResult } from './transactions.typ
 
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
+/**
+ * Taproot asset group keys come from GraphQL as hex (a 33-byte compressed
+ * secp256k1 pubkey → 66 hex chars). litd's REST gateway expects the `group_key`
+ * bytes field base64-encoded; passing the hex string makes the gateway
+ * base64-decode it (66 chars → 49 bytes) and tapd rejects it with
+ * "error parsing group key: malformed public key: invalid length: 49".
+ * Convert hex → raw bytes → base64 so tapd parses the 33-byte compressed key.
+ */
+function hexGroupKeyToBase64(groupKeyHex: string): string {
+  return Buffer.from(groupKeyHex, 'hex').toString('base64');
+}
+
 function buildCreateSendInput(params: SendParams): CreateSendTransactionInput {
   const { walletId, destination, idempotencyKey, metadata } = params;
   const input: CreateSendTransactionInput = { wallet_id: walletId };
@@ -127,7 +139,11 @@ export class Transactions {
               timeout_seconds: timeoutSeconds,
             },
             ...(wallet.asset.taproot_asset_details?.group_key
-              ? { group_key: wallet.asset.taproot_asset_details.group_key }
+              ? {
+                  group_key: hexGroupKeyToBase64(
+                    wallet.asset.taproot_asset_details.group_key,
+                  ),
+                }
               : {}),
           },
         })
