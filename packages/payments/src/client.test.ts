@@ -5,13 +5,13 @@ import { ConfigError } from '@ambosstech/core';
 
 import { Payments } from './client.js';
 
-describe('Payments apiKey gating', () => {
-  it('webhooks API works without apiKey when webhookSecret provided', () => {
+describe('Payments serviceApiKey gating', () => {
+  it('webhooks API works without a key when webhookSecret provided', () => {
     const payments = new Payments({ webhookSecret: 'whsec_test' });
     assert.ok(payments.webhooks);
   });
 
-  it('throws ConfigError when accessing environments without apiKey', () => {
+  it('throws ConfigError when accessing environments without a serviceApiKey', () => {
     const payments = new Payments({ webhookSecret: 'whsec_test' });
     assert.throws(
       () => payments.environments,
@@ -19,7 +19,7 @@ describe('Payments apiKey gating', () => {
     );
   });
 
-  it('throws ConfigError when accessing wallets without apiKey', () => {
+  it('throws ConfigError when accessing wallets without a serviceApiKey', () => {
     const payments = new Payments({});
     assert.throws(
       () => payments.wallets,
@@ -27,7 +27,7 @@ describe('Payments apiKey gating', () => {
     );
   });
 
-  it('throws ConfigError when accessing transactions without apiKey', () => {
+  it('throws ConfigError when accessing transactions without a serviceApiKey', () => {
     const payments = new Payments({});
     assert.throws(
       () => payments.transactions,
@@ -35,8 +35,16 @@ describe('Payments apiKey gating', () => {
     );
   });
 
-  it('does not throw when apiKey is provided', () => {
-    const payments = new Payments({ apiKey: 'sk_test', webhookSecret: 'whsec_test' });
+  it('rejects a bearer apiKey alone — payments is service-key only', () => {
+    const payments = new Payments({ apiKey: 'bearer_test' });
+    assert.throws(
+      () => payments.transactions,
+      (err: unknown) => err instanceof ConfigError,
+    );
+  });
+
+  it('does not throw when serviceApiKey is provided', () => {
+    const payments = new Payments({ serviceApiKey: 'amb_live_test', webhookSecret: 'whsec_test' });
     assert.ok(payments.environments);
     assert.ok(payments.wallets);
     assert.ok(payments.transactions);
