@@ -31,11 +31,6 @@ export type AccountInfo = {
   us_state?: Maybe<Scalars['String']['output']>;
 };
 
-export type AddNodeToWalletInput = {
-  node_id: Scalars['String']['input'];
-  wallet_id: Scalars['String']['input'];
-};
-
 export type AddPartnerNodeInput = {
   node_id: Scalars['String']['input'];
   pubkey: Scalars['String']['input'];
@@ -68,6 +63,7 @@ export type AssetOracleQuotes = {
   id: Scalars['String']['output'];
 };
 
+/** Trimmed Taproot Asset representation used in the taproot_assets list view. Contains only the metadata required for proof-courier setup and asset identification (symbol, group_key, universe). See BitcoinAsset for the full type, which additionally carries type, precision, and pricing. */
 export type AvailableTaprootAsset = {
   group_key?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
@@ -100,6 +96,7 @@ export type Balances = {
   reserved: SatoshiAmount;
 };
 
+/** Full asset record for a supported Bitcoin or Taproot Asset. Includes type, precision, and pricing alongside identity fields. AvailableTaprootAsset is the trimmed counterpart used when only proof-courier metadata (group_key, universe) is needed; it does not carry type or precision. */
 export type BitcoinAsset = {
   description?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
@@ -174,8 +171,14 @@ export type CreateInvoiceResult = {
 };
 
 export type CreatePaymentsEnvironmentInput = {
+  live?: InputMaybe<LivePaymentsEnvironmentInput>;
   name: Scalars['String']['input'];
   type: PaymentsEnvironmentType;
+};
+
+export type CreatePaymentsEnvironmentResult = {
+  checkout_url?: Maybe<Scalars['String']['output']>;
+  environment: PaymentsEnvironment;
 };
 
 export type CreatePaymentsWalletInput = {
@@ -187,8 +190,17 @@ export type CreatePaymentsWalletInput = {
 export type CreateReceiveTransactionInput = {
   amount: Scalars['String']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
-  expires_in?: InputMaybe<Scalars['Int']['input']>;
-  idempotency_key: Scalars['String']['input'];
+  expires_in_seconds?: InputMaybe<Scalars['Int']['input']>;
+  idempotency_key?: InputMaybe<Scalars['String']['input']>;
+  metadata?: InputMaybe<Scalars['String']['input']>;
+  wallet_id: Scalars['String']['input'];
+};
+
+export type CreateSendTransactionInput = {
+  address?: InputMaybe<SendByAddress>;
+  idempotency_key?: InputMaybe<Scalars['String']['input']>;
+  metadata?: InputMaybe<Scalars['String']['input']>;
+  request?: InputMaybe<SendByRequest>;
   wallet_id: Scalars['String']['input'];
 };
 
@@ -207,6 +219,17 @@ export type CreateServiceApiKeyResult = {
   plaintext_key: Scalars['String']['output'];
 };
 
+export type CreateWebhookEndpointInput = {
+  environment_id: Scalars['String']['input'];
+  event_filters?: InputMaybe<Array<Scalars['String']['input']>>;
+  url: Scalars['String']['input'];
+};
+
+export type CreateWebhookEndpointResult = {
+  endpoint: WebhookEndpoint;
+  secret: Scalars['String']['output'];
+};
+
 export type CredentialMutations = {
   store_admin: Scalars['Boolean']['output'];
   store_management: Scalars['Boolean']['output'];
@@ -220,6 +243,13 @@ export type CredentialMutationsStore_AdminArgs = {
 
 export type CredentialMutationsStore_ManagementArgs = {
   input: StoreManagementCredentialsInput;
+};
+
+export type DateRangeInput = {
+  /** Inclusive lower bound */
+  from?: InputMaybe<Scalars['String']['input']>;
+  /** Exclusive upper bound */
+  to?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type DeployManagedNode = {
@@ -236,6 +266,7 @@ export type DeployedNode = {
   funds_available_at: Scalars['String']['output'];
   id: Scalars['String']['output'];
   is_automated: Scalars['Boolean']['output'];
+  network: DeployedNodeNetwork;
   node_type: ManagedNodeType;
   partners: PartnerNodeList;
   password: Scalars['String']['output'];
@@ -251,6 +282,11 @@ export type DeployedNodeMacaroonLocation =
   | 'LITD'
   | 'LND'
   | 'TAPD';
+
+export type DeployedNodeNetwork =
+  | 'MAINNET'
+  | 'MUTINYNET'
+  | 'TESTNET';
 
 export type DeployedNodeState =
   | 'ACTIVE'
@@ -291,7 +327,7 @@ export type EnableTaprootAssetsResult = {
 };
 
 export type EnvironmentMutations = {
-  create: PaymentsEnvironment;
+  create: CreatePaymentsEnvironmentResult;
   delete: Scalars['Boolean']['output'];
   id: Scalars['String']['output'];
 };
@@ -307,13 +343,13 @@ export type EnvironmentMutationsDeleteArgs = {
 };
 
 export type EnvironmentQueries = {
-  get: PaymentsEnvironment;
+  find_many: FindManyEnvironments;
+  find_one: PaymentsEnvironment;
   id: Scalars['String']['output'];
-  list: Array<PaymentsEnvironment>;
 };
 
 
-export type EnvironmentQueriesGetArgs = {
+export type EnvironmentQueriesFind_OneArgs = {
   id: Scalars['String']['input'];
 };
 
@@ -327,6 +363,45 @@ export type FinancialChanges = {
   leasing_revenue_change: SatoshiAmount;
   onchain_costs_change: SatoshiAmount;
   routing_revenue_change: SatoshiAmount;
+};
+
+export type FindManyEnvironments = {
+  id: Scalars['String']['output'];
+  list: Array<SimplePaymentsEnvironment>;
+};
+
+export type FindManyTransactions = {
+  id: Scalars['String']['output'];
+  list: Array<SimplePaymentsTransaction>;
+  pagination: Pagination;
+  total_count: Scalars['Int']['output'];
+};
+
+export type FindManyWallets = {
+  id: Scalars['String']['output'];
+  list: Array<SimplePaymentsWallet>;
+};
+
+
+export type FindManyWalletsListArgs = {
+  environment_id: Scalars['String']['input'];
+};
+
+export type FindManyWebhookEndpoints = {
+  id: Scalars['String']['output'];
+  list: Array<SimpleWebhookEndpoint>;
+};
+
+
+export type FindManyWebhookEndpointsListArgs = {
+  environment_id: Scalars['String']['input'];
+};
+
+export type FindManyWebhookEvents = {
+  id: Scalars['String']['output'];
+  list: Array<SimpleWebhookEvent>;
+  pagination: Pagination;
+  total_count: Scalars['Int']['output'];
 };
 
 export type Funds = {
@@ -384,10 +459,42 @@ export type LiquidityStats = {
   sales: Scalars['Float']['output'];
 };
 
+export type ListTransactionsFilterInput = {
+  date_range?: InputMaybe<DateRangeInput>;
+  direction?: InputMaybe<PaymentsTransactionDirection>;
+  status?: InputMaybe<PaymentsTransactionStatus>;
+};
+
+export type ListTransactionsInput = {
+  environment_id?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<ListTransactionsFilterInput>;
+  page?: InputMaybe<PageInput>;
+  wallet_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ListWebhookEventsFilterInput = {
+  date_range?: InputMaybe<DateRangeInput>;
+  endpoint_id?: InputMaybe<Scalars['String']['input']>;
+  event_type?: InputMaybe<Scalars['String']['input']>;
+  transaction_id?: InputMaybe<Scalars['String']['input']>;
+  wallet_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ListWebhookEventsInput = {
+  environment_id: Scalars['String']['input'];
+  filter?: InputMaybe<ListWebhookEventsFilterInput>;
+  page?: InputMaybe<PageInput>;
+};
+
 export type LitdSockets = {
   grpc: Scalars['String']['output'];
   id: Scalars['String']['output'];
   rest: Scalars['String']['output'];
+};
+
+export type LivePaymentsEnvironmentInput = {
+  cancel_url: Scalars['String']['input'];
+  success_url: Scalars['String']['input'];
 };
 
 export type LndPermissions = {
@@ -514,7 +621,9 @@ export type NodeMutations = {
 
 
 export type NodeMutationsActivateArgs = {
+  cancel_url: Scalars['String']['input'];
   node_id: Scalars['String']['input'];
+  success_url: Scalars['String']['input'];
 };
 
 
@@ -550,6 +659,22 @@ export type NodePartnersAddArgs = {
 
 export type NodePartnersRemoveArgs = {
   input: RemovePartnerNodeInput;
+};
+
+export type NodePermission = {
+  encrypted_macaroon: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  macaroon_id: Scalars['String']['output'];
+  network: DeployedNodeNetwork;
+  node_id: Scalars['String']['output'];
+  sockets: NodePermissionSockets;
+  tls_cert?: Maybe<Scalars['String']['output']>;
+};
+
+export type NodePermissionSockets = {
+  id: Scalars['String']['output'];
+  litd?: Maybe<SocketEndpoints>;
+  lnd?: Maybe<SocketEndpoints>;
 };
 
 export type NodeQueries = {
@@ -630,14 +755,19 @@ export type PaymentMutations = {
   id: Scalars['String']['output'];
   transaction: TransactionMutations;
   wallet: WalletMutations;
+  webhook_endpoint: WebhookEndpointMutations;
 };
 
 export type PaymentQueries = {
   environment: EnvironmentQueries;
   id: Scalars['String']['output'];
+  transaction: TransactionQueries;
   wallet: WalletQueries;
+  webhook_endpoint: WebhookEndpointQueries;
+  webhook_event: WebhookEventQueries;
 };
 
+/** Full environment record, returned when fetching a single environment. */
 export type PaymentsEnvironment = {
   created_at: Scalars['String']['output'];
   id: Scalars['String']['output'];
@@ -652,18 +782,26 @@ export type PaymentsEnvironmentType =
   | 'SANDBOX';
 
 export type PaymentsTransaction = {
-  amount: Scalars['String']['output'];
+  amount: BitcoinAssetAmount;
+  amount_sats?: Maybe<Scalars['String']['output']>;
+  asset: BitcoinAsset;
   created_at: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
   direction: PaymentsTransactionDirection;
   error?: Maybe<Scalars['String']['output']>;
+  events: Array<PaymentsTransactionEvent>;
+  exchange_rate?: Maybe<Scalars['String']['output']>;
   expires_at?: Maybe<Scalars['String']['output']>;
   fee?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   idempotency_key: Scalars['String']['output'];
-  node_id: Scalars['String']['output'];
+  metadata?: Maybe<Scalars['String']['output']>;
+  node_id?: Maybe<Scalars['String']['output']>;
   payment_hash?: Maybe<Scalars['String']['output']>;
   payment_request?: Maybe<Scalars['String']['output']>;
+  settle_amount?: Maybe<BitcoinAssetAmount>;
+  /** @deprecated Use settle_amount instead. */
+  settle_amount_sats?: Maybe<Scalars['String']['output']>;
   settled_at?: Maybe<Scalars['String']['output']>;
   status: PaymentsTransactionStatus;
   updated_at: Scalars['String']['output'];
@@ -674,12 +812,21 @@ export type PaymentsTransactionDirection =
   | 'RECEIVE'
   | 'SEND';
 
+export type PaymentsTransactionEvent = {
+  created_at: Scalars['String']['output'];
+  details?: Maybe<Scalars['String']['output']>;
+  event_type: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  message?: Maybe<Scalars['String']['output']>;
+};
+
 export type PaymentsTransactionStatus =
   | 'COMPLETED'
   | 'EXPIRED'
   | 'FAILED'
   | 'PENDING';
 
+/** Full wallet record, returned when fetching a single wallet. Includes all fields from SimplePaymentsWallet plus balance, environment, nodes, node_permissions, and updated_at. */
 export type PaymentsWallet = {
   asset: BitcoinAsset;
   asset_id: Scalars['String']['output'];
@@ -688,9 +835,18 @@ export type PaymentsWallet = {
   environment: PaymentsEnvironment;
   environment_id: Scalars['String']['output'];
   id: Scalars['String']['output'];
+  /** Whether the wallet can receive payments. Always true in sandbox; in live it becomes true once the node has inbound asset-channel liquidity. */
+  is_ready: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
+  node_permissions: WalletNodePermissions;
   nodes: Array<DeployedNode>;
   updated_at: Scalars['String']['output'];
+};
+
+
+/** Full wallet record, returned when fetching a single wallet. Includes all fields from SimplePaymentsWallet plus balance, environment, nodes, node_permissions, and updated_at. */
+export type PaymentsWalletNode_PermissionsArgs = {
+  password_hash?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type PaymentsWalletBalance = {
@@ -809,6 +965,15 @@ export type SatoshiAmount = {
   usd: Scalars['Float']['output'];
 };
 
+export type SendByAddress = {
+  amount: Scalars['String']['input'];
+  lightning_address: Scalars['String']['input'];
+};
+
+export type SendByRequest = {
+  bolt11: Scalars['String']['input'];
+};
+
 export type ServiceApiKey = {
   active: Scalars['Boolean']['output'];
   created_at: Scalars['String']['output'];
@@ -869,7 +1034,9 @@ export type ServiceApiKeyPermissionLevel =
 export type ServiceApiKeyPermissionResource =
   | 'ENVIRONMENTS'
   | 'PAYMENTS'
-  | 'WALLETS';
+  | 'WALLETS'
+  | 'WALLET_CREDENTIALS'
+  | 'WEBHOOKS';
 
 export type ServiceApiKeyQueries = {
   get_many: ServiceApiKeyGetMany;
@@ -886,11 +1053,73 @@ export type SetAutomatedAssetInput = {
   node_id: Scalars['String']['input'];
 };
 
+/** Trimmed node representation returned in list views and as a nested reference. Contains only public identity fields (pubkey, alias, sockets). See DeployedNode for the full type, which includes state, credentials, and configuration. */
 export type SimpleNode = {
   alias?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   pubkey: Scalars['String']['output'];
   sockets: Array<Scalars['String']['output']>;
+};
+
+/** Trimmed environment representation returned in list views. PaymentsEnvironment is the full type for single-record lookups. */
+export type SimplePaymentsEnvironment = {
+  created_at: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  type: PaymentsEnvironmentType;
+  updated_at: Scalars['String']['output'];
+  wallet_count: Scalars['Int']['output'];
+};
+
+/** Trimmed transaction representation returned in list views. Contains core transaction fields (amount, asset, status, direction, fee, description). See PaymentsTransaction for the full type, which additionally includes idempotency_key, events, error, exchange_rate, payment_hash, payment_request, node_id, and related computed fields. */
+export type SimplePaymentsTransaction = {
+  amount: BitcoinAssetAmount;
+  asset: BitcoinAsset;
+  created_at: Scalars['String']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  direction: PaymentsTransactionDirection;
+  fee?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  metadata?: Maybe<Scalars['String']['output']>;
+  settled_at?: Maybe<Scalars['String']['output']>;
+  status: PaymentsTransactionStatus;
+  updated_at: Scalars['String']['output'];
+  wallet_id: Scalars['String']['output'];
+};
+
+/** Trimmed wallet representation returned in list views. Contains identity, asset, and readiness fields only. See PaymentsWallet for the full type, which additionally includes balance, environment, nodes, node_permissions, and updated_at. */
+export type SimplePaymentsWallet = {
+  asset: BitcoinAsset;
+  asset_id: Scalars['String']['output'];
+  created_at: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  /** Whether the wallet can receive payments. Always true in sandbox; in live it becomes true once the node has inbound asset-channel liquidity. */
+  is_ready: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+};
+
+/** Trimmed webhook endpoint representation returned in list views. Contains identity and configuration fields only. See WebhookEndpoint for the full type, which additionally includes environment_id and updated_at. */
+export type SimpleWebhookEndpoint = {
+  active: Scalars['Boolean']['output'];
+  created_at: Scalars['String']['output'];
+  event_filters: Array<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  url: Scalars['String']['output'];
+};
+
+/** Trimmed webhook event representation returned in list views. Contains identity and routing fields only (event_type, wallet_id, transaction_id). See WebhookEvent for the full type, which additionally includes idempotency_key, payload, environment_id, and deliveries. */
+export type SimpleWebhookEvent = {
+  created_at: Scalars['String']['output'];
+  event_type: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  transaction_id?: Maybe<Scalars['String']['output']>;
+  wallet_id: Scalars['String']['output'];
+};
+
+export type SocketEndpoints = {
+  grpc: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  rest: Scalars['String']['output'];
 };
 
 export type SortDirection =
@@ -994,6 +1223,7 @@ export type Team = {
   encrypted_symmetric_key?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   members: Array<TeamMember>;
+  month_to_date_payment_volume_sats: Scalars['String']['output'];
   password_hash?: Maybe<Scalars['String']['output']>;
 };
 
@@ -1088,12 +1318,34 @@ export type TransactionMetadata = {
 
 export type TransactionMutations = {
   create_receive: PaymentsTransaction;
+  create_send: PaymentsTransaction;
   id: Scalars['String']['output'];
 };
 
 
 export type TransactionMutationsCreate_ReceiveArgs = {
   input: CreateReceiveTransactionInput;
+};
+
+
+export type TransactionMutationsCreate_SendArgs = {
+  input: CreateSendTransactionInput;
+};
+
+export type TransactionQueries = {
+  find_many: FindManyTransactions;
+  find_one: PaymentsTransaction;
+  id: Scalars['String']['output'];
+};
+
+
+export type TransactionQueriesFind_ManyArgs = {
+  input: ListTransactionsInput;
+};
+
+
+export type TransactionQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
 };
 
 export type TransactionStatus =
@@ -1113,9 +1365,18 @@ export type UpdateServiceApiKeyInput = {
   name: Scalars['String']['input'];
 };
 
+export type UpdateWebhookEndpointInput = {
+  active?: InputMaybe<Scalars['Boolean']['input']>;
+  event_filters?: InputMaybe<Array<Scalars['String']['input']>>;
+  id: Scalars['String']['input'];
+  url?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type User = {
   email?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use has_lp_access instead */
   has_access: Scalars['Boolean']['output'];
+  has_lp_access: Scalars['Boolean']['output'];
   id: Scalars['String']['output'];
   is_master: Scalars['Boolean']['output'];
   is_team: Scalars['Boolean']['output'];
@@ -1166,15 +1427,9 @@ export type VerificationStatus =
   | 'NOT_COMPLETED';
 
 export type WalletMutations = {
-  add_node: PaymentsWallet;
   create: PaymentsWallet;
   delete: Scalars['Boolean']['output'];
   id: Scalars['String']['output'];
-};
-
-
-export type WalletMutationsAdd_NodeArgs = {
-  input: AddNodeToWalletInput;
 };
 
 
@@ -1187,42 +1442,140 @@ export type WalletMutationsDeleteArgs = {
   id: Scalars['String']['input'];
 };
 
-export type WalletQueries = {
-  get: PaymentsWallet;
+export type WalletNodePermissions = {
+  encrypted_symmetric_key: Scalars['String']['output'];
   id: Scalars['String']['output'];
-  list: Array<PaymentsWallet>;
+  nodes: Array<NodePermission>;
+};
+
+export type WalletQueries = {
+  find_many: FindManyWallets;
+  find_one: PaymentsWallet;
+  id: Scalars['String']['output'];
 };
 
 
-export type WalletQueriesGetArgs = {
+export type WalletQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
+};
+
+export type WebhookDelivery = {
+  attempt_number: Scalars['Int']['output'];
+  created_at: Scalars['String']['output'];
+  error_message?: Maybe<Scalars['String']['output']>;
+  http_status?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['String']['output'];
+  status: WebhookDeliveryStatus;
+  updated_at: Scalars['String']['output'];
+  webhook_endpoint_id: Scalars['String']['output'];
+};
+
+export type WebhookDeliveryStatus =
+  | 'FAILED'
+  | 'IN_PROGRESS'
+  | 'PENDING'
+  | 'SUCCESS';
+
+export type WebhookEndpoint = {
+  active: Scalars['Boolean']['output'];
+  created_at: Scalars['String']['output'];
+  environment_id: Scalars['String']['output'];
+  event_filters: Array<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  updated_at: Scalars['String']['output'];
+  url: Scalars['String']['output'];
+};
+
+export type WebhookEndpointMutations = {
+  create: CreateWebhookEndpointResult;
+  delete: Scalars['Boolean']['output'];
+  id: Scalars['String']['output'];
+  rotate_secret: CreateWebhookEndpointResult;
+  update: WebhookEndpoint;
+};
+
+
+export type WebhookEndpointMutationsCreateArgs = {
+  input: CreateWebhookEndpointInput;
+};
+
+
+export type WebhookEndpointMutationsDeleteArgs = {
   id: Scalars['String']['input'];
 };
 
 
-export type WalletQueriesListArgs = {
-  environment_id: Scalars['String']['input'];
+export type WebhookEndpointMutationsRotate_SecretArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type WebhookEndpointMutationsUpdateArgs = {
+  input: UpdateWebhookEndpointInput;
+};
+
+export type WebhookEndpointQueries = {
+  available_event_types: Array<Scalars['String']['output']>;
+  find_many: FindManyWebhookEndpoints;
+  find_one: WebhookEndpoint;
+  id: Scalars['String']['output'];
+};
+
+
+export type WebhookEndpointQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
+};
+
+export type WebhookEvent = {
+  created_at: Scalars['String']['output'];
+  deliveries: Array<WebhookDelivery>;
+  environment_id: Scalars['String']['output'];
+  event_type: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  idempotency_key: Scalars['String']['output'];
+  payload: Scalars['String']['output'];
+  transaction_id?: Maybe<Scalars['String']['output']>;
+  wallet_id: Scalars['String']['output'];
+};
+
+export type WebhookEventQueries = {
+  find_many: FindManyWebhookEvents;
+  find_one: WebhookEvent;
+  id: Scalars['String']['output'];
+};
+
+
+export type WebhookEventQueriesFind_ManyArgs = {
+  input: ListWebhookEventsInput;
+};
+
+
+export type WebhookEventQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
 };
 
 export type PaymentsEnvironmentFieldsFragment = { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string };
 
+export type SimplePaymentsEnvironmentFieldsFragment = { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string };
+
 export type ListEnvironmentsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ListEnvironmentsQuery = { payment: { environment: { list: Array<{ id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }> } } };
+export type ListEnvironmentsQuery = { payment: { environment: { find_many: { list: Array<{ id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }> } } } };
 
 export type GetEnvironmentQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetEnvironmentQuery = { payment: { environment: { get: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string } } } };
+export type GetEnvironmentQuery = { payment: { environment: { find_one: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string } } } };
 
 export type CreateEnvironmentMutationVariables = Exact<{
   input: CreatePaymentsEnvironmentInput;
 }>;
 
 
-export type CreateEnvironmentMutation = { payment: { environment: { create: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string } } } };
+export type CreateEnvironmentMutation = { payment: { environment: { create: { environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string } } } } };
 
 export type DeleteEnvironmentMutationVariables = Exact<{
   id: Scalars['String']['input'];
@@ -1231,30 +1584,32 @@ export type DeleteEnvironmentMutationVariables = Exact<{
 
 export type DeleteEnvironmentMutation = { payment: { environment: { delete: boolean } } };
 
-export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id: string, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount: string, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string };
+export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
 
 export type CreateReceiveTransactionMutationVariables = Exact<{
   input: CreateReceiveTransactionInput;
 }>;
 
 
-export type CreateReceiveTransactionMutation = { payment: { transaction: { create_receive: { id: string, wallet_id: string, node_id: string, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount: string, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string } } } };
+export type CreateReceiveTransactionMutation = { payment: { transaction: { create_receive: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
 
 export type PaymentsWalletFieldsFragment = { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> };
+
+export type SimplePaymentsWalletFieldsFragment = { id: string, name: string, asset_id: string, is_ready: boolean, created_at: string, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null } };
 
 export type ListWalletsQueryVariables = Exact<{
   environmentId: Scalars['String']['input'];
 }>;
 
 
-export type ListWalletsQuery = { payment: { wallet: { list: Array<{ id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> }> } } };
+export type ListWalletsQuery = { payment: { wallet: { find_many: { list: Array<{ id: string, name: string, asset_id: string, is_ready: boolean, created_at: string, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null } }> } } } };
 
 export type GetWalletQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetWalletQuery = { payment: { wallet: { get: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
+export type GetWalletQuery = { payment: { wallet: { find_one: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
 
 export type CreateWalletMutationVariables = Exact<{
   input: CreatePaymentsWalletInput;
@@ -1263,13 +1618,6 @@ export type CreateWalletMutationVariables = Exact<{
 
 export type CreateWalletMutation = { payment: { wallet: { create: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
 
-export type AddNodeToWalletMutationVariables = Exact<{
-  input: AddNodeToWalletInput;
-}>;
-
-
-export type AddNodeToWalletMutation = { payment: { wallet: { add_node: { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> } } } };
-
 export type DeleteWalletMutationVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
@@ -1277,6 +1625,16 @@ export type DeleteWalletMutationVariables = Exact<{
 
 export type DeleteWalletMutation = { payment: { wallet: { delete: boolean } } };
 
+export const SimplePaymentsEnvironmentFieldsFragmentDoc = `
+    fragment SimplePaymentsEnvironmentFields on SimplePaymentsEnvironment {
+  id
+  name
+  type
+  wallet_count
+  created_at
+  updated_at
+}
+    `;
 export const PaymentsTransactionFieldsFragmentDoc = `
     fragment PaymentsTransactionFields on PaymentsTransaction {
   id
@@ -1285,7 +1643,18 @@ export const PaymentsTransactionFieldsFragmentDoc = `
   idempotency_key
   direction
   status
-  amount
+  amount {
+    id
+    display_amount
+    full_amount
+  }
+  amount_sats
+  asset {
+    id
+    symbol
+    type
+    precision
+  }
   fee
   payment_hash
   payment_request
@@ -1345,22 +1714,46 @@ export const PaymentsWalletFieldsFragmentDoc = `
   }
 }
     ${PaymentsEnvironmentFieldsFragmentDoc}`;
+export const SimplePaymentsWalletFieldsFragmentDoc = `
+    fragment SimplePaymentsWalletFields on SimplePaymentsWallet {
+  id
+  name
+  asset_id
+  is_ready
+  created_at
+  asset {
+    id
+    symbol
+    precision
+    type
+    description
+    website_url
+    taproot_asset_details {
+      asset_id
+      group_key
+      universe
+    }
+  }
+}
+    `;
 export const ListEnvironmentsDocument = `
     query ListEnvironments {
   payment {
     environment {
-      list {
-        ...PaymentsEnvironmentFields
+      find_many {
+        list {
+          ...SimplePaymentsEnvironmentFields
+        }
       }
     }
   }
 }
-    ${PaymentsEnvironmentFieldsFragmentDoc}`;
+    ${SimplePaymentsEnvironmentFieldsFragmentDoc}`;
 export const GetEnvironmentDocument = `
     query GetEnvironment($id: String!) {
   payment {
     environment {
-      get(id: $id) {
+      find_one(id: $id) {
         ...PaymentsEnvironmentFields
       }
     }
@@ -1372,7 +1765,9 @@ export const CreateEnvironmentDocument = `
   payment {
     environment {
       create(input: $input) {
-        ...PaymentsEnvironmentFields
+        environment {
+          ...PaymentsEnvironmentFields
+        }
       }
     }
   }
@@ -1402,18 +1797,20 @@ export const ListWalletsDocument = `
     query ListWallets($environmentId: String!) {
   payment {
     wallet {
-      list(environment_id: $environmentId) {
-        ...PaymentsWalletFields
+      find_many {
+        list(environment_id: $environmentId) {
+          ...SimplePaymentsWalletFields
+        }
       }
     }
   }
 }
-    ${PaymentsWalletFieldsFragmentDoc}`;
+    ${SimplePaymentsWalletFieldsFragmentDoc}`;
 export const GetWalletDocument = `
     query GetWallet($id: String!) {
   payment {
     wallet {
-      get(id: $id) {
+      find_one(id: $id) {
         ...PaymentsWalletFields
       }
     }
@@ -1425,17 +1822,6 @@ export const CreateWalletDocument = `
   payment {
     wallet {
       create(input: $input) {
-        ...PaymentsWalletFields
-      }
-    }
-  }
-}
-    ${PaymentsWalletFieldsFragmentDoc}`;
-export const AddNodeToWalletDocument = `
-    mutation AddNodeToWallet($input: AddNodeToWalletInput!) {
-  payment {
-    wallet {
-      add_node(input: $input) {
         ...PaymentsWalletFields
       }
     }
@@ -1482,9 +1868,6 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     CreateWallet(variables: CreateWalletMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateWalletMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateWalletMutation>({ document: CreateWalletDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateWallet', 'mutation', variables);
-    },
-    AddNodeToWallet(variables: AddNodeToWalletMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<AddNodeToWalletMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<AddNodeToWalletMutation>({ document: AddNodeToWalletDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'AddNodeToWallet', 'mutation', variables);
     },
     DeleteWallet(variables: DeleteWalletMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<DeleteWalletMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<DeleteWalletMutation>({ document: DeleteWalletDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'DeleteWallet', 'mutation', variables);
