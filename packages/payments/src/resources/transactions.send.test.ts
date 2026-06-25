@@ -107,6 +107,7 @@ describe('Transactions.send', () => {
       onUpdate: (p) => statuses.push(p.status),
     });
 
+    assert.ok(result.payment); // live wallet pays over the node
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.equal(result.payment.paymentHash, 'ph');
     assert.equal(result.transaction.payment_request, 'lnbc1xyz');
