@@ -1,6 +1,8 @@
 node_modules
 dist
 **/generated/**
+# Generated from introspection by `refresh-schema` (not hand-edited)
+**/schema/rails.graphql
 *.lock
 pnpm-lock.yaml
 .changeset

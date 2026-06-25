@@ -35,11 +35,34 @@ fragment PaymentsWalletFields on PaymentsWallet {
   }
 }
 
+fragment SimplePaymentsWalletFields on SimplePaymentsWallet {
+  id
+  name
+  asset_id
+  is_ready
+  created_at
+  asset {
+    id
+    symbol
+    precision
+    type
+    description
+    website_url
+    taproot_asset_details {
+      asset_id
+      group_key
+      universe
+    }
+  }
+}
+
 query ListWallets($environmentId: String!) {
   payment {
     wallet {
-      list(environment_id: $environmentId) {
-        ...PaymentsWalletFields
+      find_many {
+        list(environment_id: $environmentId) {
+          ...SimplePaymentsWalletFields
+        }
       }
     }
   }
@@ -48,7 +71,7 @@ query ListWallets($environmentId: String!) {
 query GetWallet($id: String!) {
   payment {
     wallet {
-      get(id: $id) {
+      find_one(id: $id) {
         ...PaymentsWalletFields
       }
     }
@@ -59,16 +82,6 @@ mutation CreateWallet($input: CreatePaymentsWalletInput!) {
   payment {
     wallet {
       create(input: $input) {
-        ...PaymentsWalletFields
-      }
-    }
-  }
-}
-
-mutation AddNodeToWallet($input: AddNodeToWalletInput!) {
-  payment {
-    wallet {
-      add_node(input: $input) {
         ...PaymentsWalletFields
       }
     }

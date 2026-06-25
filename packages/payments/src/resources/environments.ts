@@ -4,6 +4,7 @@ import {
   getSdk,
   type CreatePaymentsEnvironmentInput,
   type PaymentsEnvironmentFieldsFragment,
+  type SimplePaymentsEnvironmentFieldsFragment,
 } from '../generated/sdk.js';
 
 export class Environments {
@@ -13,19 +14,19 @@ export class Environments {
     this.#sdk = getSdk(graphqlClient);
   }
 
-  async list(): Promise<PaymentsEnvironmentFieldsFragment[]> {
+  async list(): Promise<SimplePaymentsEnvironmentFieldsFragment[]> {
     const res = await this.#sdk.ListEnvironments();
-    return res.payment.environment.list;
+    return res.payment.environment.find_many.list;
   }
 
   async get(id: string): Promise<PaymentsEnvironmentFieldsFragment> {
     const res = await this.#sdk.GetEnvironment({ id });
-    return res.payment.environment.get;
+    return res.payment.environment.find_one;
   }
 
   async create(input: CreatePaymentsEnvironmentInput): Promise<PaymentsEnvironmentFieldsFragment> {
     const res = await this.#sdk.CreateEnvironment({ input });
-    return res.payment.environment.create;
+    return res.payment.environment.create.environment;
   }
 
   async delete(id: string): Promise<boolean> {

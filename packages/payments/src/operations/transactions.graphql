@@ -5,7 +5,18 @@ fragment PaymentsTransactionFields on PaymentsTransaction {
   idempotency_key
   direction
   status
-  amount
+  amount {
+    id
+    display_amount
+    full_amount
+  }
+  amount_sats
+  asset {
+    id
+    symbol
+    type
+    precision
+  }
   fee
   payment_hash
   payment_request

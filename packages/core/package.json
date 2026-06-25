@@ -18,7 +18,7 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/amboss.graphql"
+    "./schema": "./schema/rails.graphql"
   },
   "files": [
     "dist",

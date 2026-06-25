@@ -34,13 +34,13 @@ Domain packages extend `AmbossClient` and expose their own resource namespaces.
 
 ## Schema
 
-The pinned GraphQL schema lives at [`schema/amboss.graphql`](./schema/amboss.graphql). Refresh it from the dev API:
+The pinned GraphQL schema lives at [`schema/rails.graphql`](./schema/rails.graphql). Refresh it from the API:
 
 ```bash
 pnpm --filter @ambosstech/core run refresh-schema
 ```
 
-The endpoint defaults to `https://rails-dev.amboss.tech/graphql`. Override with `AMBOSS_SCHEMA_URL`.
+The endpoint defaults to `https://rails.amboss.tech/graphql`. Override with `AMBOSS_SCHEMA_URL`.
 
 ## License
 

@@ -9,12 +9,12 @@ import {
   type IntrospectionQuery,
 } from 'graphql';
 
-const SCHEMA_ENDPOINT = process.env.AMBOSS_SCHEMA_URL ?? 'https://rails-dev.amboss.tech/graphql';
+const SCHEMA_ENDPOINT = process.env.AMBOSS_SCHEMA_URL ?? 'https://rails.amboss.tech/graphql';
 const OUTPUT_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '..',
   'schema',
-  'amboss.graphql',
+  'rails.graphql',
 );
 
 async function main(): Promise<void> {

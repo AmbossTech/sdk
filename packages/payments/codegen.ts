@@ -2,7 +2,7 @@ import type { CodegenConfig } from '@graphql-codegen/cli';
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema: '../core/schema/amboss.graphql',
+  schema: '../core/schema/rails.graphql',
   documents: ['src/operations/**/*.graphql'],
   generates: {
     'src/generated/sdk.ts': {

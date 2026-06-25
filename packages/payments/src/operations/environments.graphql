@@ -7,11 +7,22 @@ fragment PaymentsEnvironmentFields on PaymentsEnvironment {
   updated_at
 }
 
+fragment SimplePaymentsEnvironmentFields on SimplePaymentsEnvironment {
+  id
+  name
+  type
+  wallet_count
+  created_at
+  updated_at
+}
+
 query ListEnvironments {
   payment {
     environment {
-      list {
-        ...PaymentsEnvironmentFields
+      find_many {
+        list {
+          ...SimplePaymentsEnvironmentFields
+        }
       }
     }
   }
@@ -20,7 +31,7 @@ query ListEnvironments {
 query GetEnvironment($id: String!) {
   payment {
     environment {
-      get(id: $id) {
+      find_one(id: $id) {
         ...PaymentsEnvironmentFields
       }
     }
@@ -31,7 +42,9 @@ mutation CreateEnvironment($input: CreatePaymentsEnvironmentInput!) {
   payment {
     environment {
       create(input: $input) {
-        ...PaymentsEnvironmentFields
+        environment {
+          ...PaymentsEnvironmentFields
+        }
       }
     }
   }
