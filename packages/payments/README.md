@@ -195,6 +195,20 @@ Base-asset wallets pay over LND; Taproot Asset wallets pay over litd — the SDK
 selects the endpoint automatically from the wallet's asset. A wrong password
 throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
+## Examples
+
+Runnable scripts live in [`examples/`](./examples). They run against a live API
+using credentials from `examples/.env` (gitignored):
+
+```bash
+pnpm build
+cp examples/.env.example examples/.env   # then fill in AMBOSS_API_KEY
+node --env-file=examples/.env examples/send.ts
+```
+
+`send.ts` lists your environments and wallets, then optionally sends a payment.
+See [`examples/README.md`](./examples/README.md) for details.
+
 ## Errors
 
 API errors thrown by resource calls are typed as `ApiError`:
