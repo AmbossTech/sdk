@@ -151,10 +151,9 @@ await payments.environments.delete(id);
 ### Wallets
 
 ```ts
-await payments.wallets.list({ environmentId });
-await payments.wallets.get(id);
+await payments.wallets.list({ environmentId }); // returns trimmed wallets (no balance/nodes)
+await payments.wallets.get(id); // returns the full wallet record
 await payments.wallets.create({ environment_id, asset_id, name });
-await payments.wallets.addNode({ wallet_id, node_id });
 await payments.wallets.delete(id);
 ```
 
@@ -170,7 +169,31 @@ await payments.transactions.createReceive({
 });
 ```
 
-> Send-side transactions and transaction list are not exposed in v1. They will land in a future release.
+#### Sending
+
+`transactions.send` mirrors the dashboard send flow without the UI. It creates the
+send transaction, decrypts the node admin macaroon **in-process** using the team
+password (the password never leaves your process and is never sent to the API),
+then executes the payment directly against the node's REST endpoint, resolving
+with the terminal result.
+
+```ts
+const { transaction, payment } = await payments.transactions.send({
+  walletId,
+  password, // team password — used only to decrypt the node macaroon locally
+  feeLimitSats: '50',
+  destination: { bolt11: 'lnbc1...' },
+  // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
+  onUpdate: ({ status }) => console.log(status), // 'IN_FLIGHT' | ...
+});
+
+payment.status; // 'SUCCEEDED' | 'FAILED'
+payment.paymentHash;
+```
+
+Base-asset wallets pay over LND; Taproot Asset wallets pay over litd — the SDK
+selects the endpoint automatically from the wallet's asset. A wrong password
+throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
 ## Errors
 

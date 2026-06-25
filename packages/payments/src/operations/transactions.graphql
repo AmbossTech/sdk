@@ -37,3 +37,49 @@ mutation CreateReceiveTransaction($input: CreateReceiveTransactionInput!) {
     }
   }
 }
+
+mutation CreateSendTransaction($input: CreateSendTransactionInput!) {
+  payment {
+    transaction {
+      create_send(input: $input) {
+        ...PaymentsTransactionFields
+      }
+    }
+  }
+}
+
+query GetWalletNodePermissions($id: String!, $password_hash: String) {
+  payment {
+    wallet {
+      find_one(id: $id) {
+        id
+        asset {
+          id
+          type
+        }
+        node_permissions(password_hash: $password_hash) {
+          id
+          encrypted_symmetric_key
+          nodes {
+            id
+            node_id
+            network
+            encrypted_macaroon
+            tls_cert
+            sockets {
+              id
+              lnd {
+                id
+                rest
+              }
+              litd {
+                id
+                rest
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
