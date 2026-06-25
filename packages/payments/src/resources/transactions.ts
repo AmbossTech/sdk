@@ -121,9 +121,14 @@ export class Transactions {
       ? await sendAssetPayment({
           ...common,
           body: {
-            payment_request: transaction.payment_request,
-            fee_limit_sats: feeLimitSats,
-            timeout_seconds: timeoutSeconds,
+            payment_request: {
+              payment_request: transaction.payment_request,
+              fee_limit_sat: feeLimitSats,
+              timeout_seconds: timeoutSeconds,
+            },
+            ...(wallet.asset.taproot_asset_details?.group_key
+              ? { group_key: wallet.asset.taproot_asset_details.group_key }
+              : {}),
           },
         })
       : await sendLndPayment({

@@ -48,6 +48,24 @@ export async function postPaymentStream<TUpdate>(
     ...(dispatcher ? { dispatcher } : {}),
   });
 
+  const debug = !!process.env.AMBOSS_SDK_DEBUG;
+  if (debug) {
+    console.error(
+      `[amboss-sdk] POST ${url} -> ${response.status} ${response.statusText} ` +
+        `(content-type: ${response.headers.get('content-type') ?? 'none'})`,
+    );
+  }
+
+  // A non-2xx status streams an error body that won't match the update shape and
+  // would otherwise be silently skipped, ending the stream with no terminal
+  // status. Surface it instead.
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new PaymentSendError(
+      `Payment stream HTTP ${response.status} ${response.statusText}: ${text.slice(0, 1000) || '(empty body)'}`,
+    );
+  }
+
   if (!response.body) {
     throw new PaymentSendError('Payment stream returned no body');
   }
@@ -59,7 +77,10 @@ export async function postPaymentStream<TUpdate>(
   try {
     for (;;) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        if (debug) console.error('[amboss-sdk] stream ended (reader done)');
+        break;
+      }
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -67,12 +88,14 @@ export async function postPaymentStream<TUpdate>(
 
       for (const line of lines) {
         if (!line.trim()) continue;
+        if (debug) console.error('[amboss-sdk] stream line:', line);
         // The gateway emits one JSON object per line; skip anything unparseable
         // rather than aborting an in-flight payment on a stray chunk.
         let parsed: TUpdate;
         try {
           parsed = JSON.parse(line) as TUpdate;
         } catch {
+          if (debug) console.error('[amboss-sdk] skipped unparseable line');
           continue;
         }
         onLine(parsed);

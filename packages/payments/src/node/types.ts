@@ -24,11 +24,19 @@ export interface LndPaymentUpdate {
   };
 }
 
-/** Request body for `POST /v2/taproot-assets/channels/send-payment` (litd). */
+/**
+ * Request body for `POST /v1/taproot-assets/channels/send-payment` (litd).
+ * `payment_request` is the nested LND `routerrpc.SendPaymentRequest` (not a bare
+ * bolt11 string); litd derives the asset/RFQ from the wallet's asset channel.
+ */
 export interface SendAssetPaymentBody {
-  payment_request: string;
-  fee_limit_sats: string;
-  timeout_seconds: number;
+  payment_request: {
+    payment_request: string;
+    fee_limit_sat: string;
+    timeout_seconds: number;
+  };
+  /** Asset group key — identifies which asset to spend on the asset channel. */
+  group_key?: string;
 }
 
 /** Streamed update from the Taproot Assets send-payment endpoint (litd). */

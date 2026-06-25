@@ -1611,7 +1611,7 @@ export type GetWalletNodePermissionsQueryVariables = Exact<{
 }>;
 
 
-export type GetWalletNodePermissionsQuery = { payment: { wallet: { find_one: { id: string, asset: { id: string, type: BitcoinAssetType }, node_permissions: { id: string, encrypted_symmetric_key: string, nodes: Array<{ id: string, node_id: string, network: DeployedNodeNetwork, encrypted_macaroon: string, tls_cert?: string | null, sockets: { id: string, lnd?: { id: string, rest: string } | null, litd?: { id: string, rest: string } | null } }> } } } } };
+export type GetWalletNodePermissionsQuery = { payment: { wallet: { find_one: { id: string, asset: { id: string, type: BitcoinAssetType, taproot_asset_details?: { group_key?: string | null } | null }, node_permissions: { id: string, encrypted_symmetric_key: string, nodes: Array<{ id: string, node_id: string, network: DeployedNodeNetwork, encrypted_macaroon: string, tls_cert?: string | null, sockets: { id: string, lnd?: { id: string, rest: string } | null, litd?: { id: string, rest: string } | null } }> } } } } };
 
 export type PaymentsWalletFieldsFragment = { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> };
 
@@ -1843,6 +1843,9 @@ export const GetWalletNodePermissionsDocument = `
         asset {
           id
           type
+          taproot_asset_details {
+            group_key
+          }
         }
         node_permissions(password_hash: $password_hash) {
           id

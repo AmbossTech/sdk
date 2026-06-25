@@ -56,6 +56,9 @@ query GetWalletNodePermissions($id: String!, $password_hash: String) {
         asset {
           id
           type
+          taproot_asset_details {
+            group_key
+          }
         }
         node_permissions(password_hash: $password_hash) {
           id
