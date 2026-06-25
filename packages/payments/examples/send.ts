@@ -104,7 +104,9 @@ async function main(): Promise<void> {
     const result = await payments.transactions.send(params);
     if (result.payment === null) {
       console.log('\n✅ sandbox send created — backend settles it asynchronously');
-      console.log('   (set metadata amb_sandbox_behavior=complete|fail|expire to control the outcome)');
+      console.log(
+        '   (set metadata amb_sandbox_behavior=complete|fail|expire to control the outcome)',
+      );
     } else {
       console.log('\n✅ send complete');
       console.log('payment:', JSON.stringify(result.payment, null, 2));

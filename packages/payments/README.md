@@ -203,7 +203,7 @@ The backend settles asynchronously per the `amb_sandbox_behavior` metadata
 
 ```ts
 const { transaction, payment } = await payments.transactions.send({
-  walletId,                       // a sandbox wallet — no password required
+  walletId, // a sandbox wallet — no password required
   feeLimitSats: '50',
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // force success in sandbox

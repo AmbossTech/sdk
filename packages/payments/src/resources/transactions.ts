@@ -163,9 +163,7 @@ export class Transactions {
             },
             ...(wallet.asset.taproot_asset_details?.group_key
               ? {
-                  group_key: hexGroupKeyToBase64(
-                    wallet.asset.taproot_asset_details.group_key,
-                  ),
+                  group_key: hexGroupKeyToBase64(wallet.asset.taproot_asset_details.group_key),
                 }
               : {}),
           },
