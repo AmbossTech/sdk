@@ -25,6 +25,15 @@ export class AmbossClient {
     return this.config.apiKey;
   }
 
+  protected requireServiceApiKey(operation: string): string {
+    if (!this.config.serviceApiKey) {
+      throw new ConfigError(
+        `${operation} requires a serviceApiKey. Pass { serviceApiKey } to the constructor.`,
+      );
+    }
+    return this.config.serviceApiKey;
+  }
+
   protected async gqlRequest<TData, TVariables extends Variables = Variables>(
     document: RequestDocument,
     variables?: TVariables,
@@ -46,8 +55,13 @@ export class AmbossClient {
       'content-type': 'application/json',
       accept: 'application/json',
     };
+    // Bearer key (cross-product) and service API key (payments) use different
+    // headers; send whichever are provided.
     if (this.config.apiKey) {
       headers.authorization = `Bearer ${this.config.apiKey}`;
+    }
+    if (this.config.serviceApiKey) {
+      headers['x-api-key'] = this.config.serviceApiKey;
     }
     return headers;
   }
@@ -59,6 +73,7 @@ export class AmbossClient {
     }
     return {
       apiKey: config.apiKey,
+      serviceApiKey: config.serviceApiKey,
       baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
       fetch: fetchImpl,
       timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,

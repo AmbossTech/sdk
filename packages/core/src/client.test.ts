@@ -48,4 +48,22 @@ describe('AmbossClient', () => {
     const probe = new Probe({ apiKey: 'sk_test' });
     assert.equal(probe.check(), 'sk_test');
   });
+
+  it('exposes undefined serviceApiKey when not provided', () => {
+    const config = AmbossClient.resolveConfig({});
+    assert.equal(config.serviceApiKey, undefined);
+  });
+
+  it('requireServiceApiKey throws without a serviceApiKey but returns it when set', () => {
+    class Probe extends AmbossClient {
+      check(): string {
+        return this.requireServiceApiKey('test op');
+      }
+    }
+    assert.throws(
+      () => new Probe({}).check(),
+      (err: unknown) => err instanceof ConfigError,
+    );
+    assert.equal(new Probe({ serviceApiKey: 'amb_live_test' }).check(), 'amb_live_test');
+  });
 });

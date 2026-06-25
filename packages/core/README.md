@@ -21,7 +21,7 @@ import {
 
 ### `AmbossClient`
 
-Base class for domain clients. Holds the resolved config and a `GraphQLClient` instance preconfigured with the `Authorization: Bearer <apiKey>` header when `apiKey` is provided.
+Base class for domain clients. Holds the resolved config and a `GraphQLClient` instance preconfigured with auth headers: `apiKey` (the cross-product Bearer key) is sent as `Authorization: Bearer <apiKey>`, and `serviceApiKey` (the scoped payments key) is sent as `x-api-key: <serviceApiKey>`.
 
 | Method                                           | Purpose                                                                       |
 | ------------------------------------------------ | ----------------------------------------------------------------------------- |
