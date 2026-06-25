@@ -195,6 +195,23 @@ Base-asset wallets pay over LND; Taproot Asset wallets pay over litd — the SDK
 selects the endpoint automatically from the wallet's asset. A wrong password
 throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
+**Sandbox wallets** need no node, no macaroon, and no password — just call
+`send` and the backend settles the transaction for you. `payment` comes back
+`null`; observe the outcome via webhooks or by polling the transaction status.
+The backend settles asynchronously per the `amb_sandbox_behavior` metadata
+(`complete` / `fail` / `expire`; default `expire`):
+
+```ts
+const { transaction, payment } = await payments.transactions.send({
+  walletId,                       // a sandbox wallet — no password required
+  feeLimitSats: '50',
+  destination: { bolt11: 'lnbc1...' },
+  metadata: { amb_sandbox_behavior: 'complete' }, // force success in sandbox
+});
+
+payment; // null — settlement happens server-side
+```
+
 ## Examples
 
 Runnable scripts live in [`examples/`](./examples). They run against a live API

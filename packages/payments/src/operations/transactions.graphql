@@ -48,6 +48,20 @@ mutation CreateSendTransaction($input: CreateSendTransactionInput!) {
   }
 }
 
+query GetWalletEnvironmentType($id: String!) {
+  payment {
+    wallet {
+      find_one(id: $id) {
+        id
+        environment {
+          id
+          type
+        }
+      }
+    }
+  }
+}
+
 query GetWalletNodePermissions($id: String!, $password_hash: String) {
   payment {
     wallet {

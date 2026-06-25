@@ -18,8 +18,12 @@ export interface SendProgress {
 export interface SendParams {
   /** Wallet to send from. */
   walletId: string;
-  /** Team password — used to decrypt the node admin macaroon in-process. */
-  password: string;
+  /**
+   * Team password — used to decrypt the node admin macaroon in-process.
+   * Required for live wallets. Ignored for sandbox wallets, where the backend
+   * settles the transaction itself and no node payment is executed.
+   */
+  password?: string;
   /**
    * Team id — the Argon2 salt for key derivation. Required when using a service
    * API key (which cannot read the `user` query); if omitted, it is resolved
@@ -44,6 +48,11 @@ export interface SendParams {
 export interface SendResult {
   /** The transaction record created by `create_send`. */
   transaction: PaymentsTransactionFieldsFragment;
-  /** Terminal outcome of the node payment. */
-  payment: NodePaymentResult;
+  /**
+   * Terminal outcome of the node payment, or `null` for sandbox wallets. In
+   * sandbox the backend settles the transaction asynchronously (no node
+   * payment runs), so observe the outcome via webhooks or by polling the
+   * transaction status rather than this field.
+   */
+  payment: NodePaymentResult | null;
 }

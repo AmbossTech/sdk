@@ -1605,6 +1605,13 @@ export type CreateSendTransactionMutationVariables = Exact<{
 
 export type CreateSendTransactionMutation = { payment: { transaction: { create_send: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
 
+export type GetWalletEnvironmentTypeQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type GetWalletEnvironmentTypeQuery = { payment: { wallet: { find_one: { id: string, environment: { id: string, type: PaymentsEnvironmentType } } } } };
+
 export type GetWalletNodePermissionsQueryVariables = Exact<{
   id: Scalars['String']['input'];
   password_hash?: InputMaybe<Scalars['String']['input']>;
@@ -1834,6 +1841,21 @@ export const CreateSendTransactionDocument = `
   }
 }
     ${PaymentsTransactionFieldsFragmentDoc}`;
+export const GetWalletEnvironmentTypeDocument = `
+    query GetWalletEnvironmentType($id: String!) {
+  payment {
+    wallet {
+      find_one(id: $id) {
+        id
+        environment {
+          id
+          type
+        }
+      }
+    }
+  }
+}
+    `;
 export const GetWalletNodePermissionsDocument = `
     query GetWalletNodePermissions($id: String!, $password_hash: String) {
   payment {
@@ -1946,6 +1968,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     CreateSendTransaction(variables: CreateSendTransactionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateSendTransactionMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateSendTransactionMutation>({ document: CreateSendTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateSendTransaction', 'mutation', variables);
+    },
+    GetWalletEnvironmentType(variables: GetWalletEnvironmentTypeQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletEnvironmentTypeQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetWalletEnvironmentTypeQuery>({ document: GetWalletEnvironmentTypeDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletEnvironmentType', 'query', variables);
     },
     GetWalletNodePermissions(variables: GetWalletNodePermissionsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletNodePermissionsQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetWalletNodePermissionsQuery>({ document: GetWalletNodePermissionsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletNodePermissions', 'query', variables);

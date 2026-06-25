@@ -73,17 +73,20 @@ async function main(): Promise<void> {
   const walletId = process.env.WALLET_ID;
   const password = process.env.TEAM_PASSWORD;
 
-  if (!walletId || !password || !destination) {
+  // Live wallets need TEAM_PASSWORD; sandbox wallets do not (the backend
+  // settles the send itself — set IDEMPOTENCY_KEY/metadata as needed).
+  if (!walletId || !destination) {
     console.log(
-      '\nSkipping send — set WALLET_ID, TEAM_PASSWORD and a destination ' +
-        '(BOLT11, or LIGHTNING_ADDRESS + AMOUNT_SATS) to send.',
+      '\nSkipping send — set WALLET_ID and a destination ' +
+        '(BOLT11, or LIGHTNING_ADDRESS + AMOUNT_SATS) to send. ' +
+        'Live wallets also need TEAM_PASSWORD.',
     );
     return;
   }
 
   const params: SendParams = {
     walletId,
-    password,
+    ...(password ? { password } : {}),
     feeLimitSats: process.env.FEE_LIMIT_SATS ?? '10',
     destination,
     ...(process.env.TEAM_ID ? { teamId: process.env.TEAM_ID } : {}),
@@ -99,8 +102,13 @@ async function main(): Promise<void> {
 
   try {
     const result = await payments.transactions.send(params);
-    console.log('\n✅ send complete');
-    console.log('payment:', JSON.stringify(result.payment, null, 2));
+    if (result.payment === null) {
+      console.log('\n✅ sandbox send created — backend settles it asynchronously');
+      console.log('   (set metadata amb_sandbox_behavior=complete|fail|expire to control the outcome)');
+    } else {
+      console.log('\n✅ send complete');
+      console.log('payment:', JSON.stringify(result.payment, null, 2));
+    }
     console.log('transaction:', JSON.stringify(result.transaction, null, 2));
   } catch (error) {
     if (error instanceof DecryptionError) {

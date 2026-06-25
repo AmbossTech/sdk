@@ -69,22 +69,45 @@ export class Transactions {
 
   /**
    * Sends a Lightning / Taproot Asset payment from a wallet — the SDK equivalent
-   * of the amboss-rails send dialog. It creates the send transaction, decrypts
-   * the node admin macaroon in-process using the team password, then executes
-   * the payment directly against the node's REST gateway and resolves with the
+   * of the amboss-rails send dialog.
+   *
+   * For **live** wallets it creates the send transaction, decrypts the node
+   * admin macaroon in-process using the team password, then executes the
+   * payment directly against the node's REST gateway and resolves with the
    * terminal result.
+   *
+   * For **sandbox** wallets there is no node and no real settlement: the SDK
+   * just creates the send and returns (`payment` is `null`). The backend
+   * settles the transaction asynchronously according to the
+   * `amb_sandbox_behavior` metadata (`complete` / `fail` / `expire`; default
+   * `expire`). No password is required.
    */
   async send(params: SendParams): Promise<SendResult> {
     const { walletId, password, feeLimitSats, destination, onUpdate, signal } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
-    // 1. Derive the master key (decrypts locally) + master password hash (proves
-    //    knowledge of the password to the server). teamId is the Argon2 salt;
-    //    callers using a service API key (no `user` access) must supply it.
+    // 1. Detect sandbox up-front (no password needed). Sandbox wallets settle
+    //    server-side, so the SDK only has to create the send.
+    const envRes = await this.#sdk.GetWalletEnvironmentType({ id: walletId });
+    const isSandbox = envRes.payment.wallet.find_one.environment.type === 'SANDBOX';
+
+    if (isSandbox) {
+      const createRes = await this.#sdk.CreateSendTransaction({
+        input: buildCreateSendInput(params),
+      });
+      return { transaction: createRes.payment.transaction.create_send, payment: null };
+    }
+
+    // 2. Live wallet — a team password is required to decrypt the node macaroon.
+    //    teamId is the Argon2 salt; callers using a service API key (no `user`
+    //    access) must supply it.
+    if (!password) {
+      throw new PaymentSendError('A team password is required to send from a live wallet.');
+    }
     const teamId = params.teamId ?? (await this.#resolveTeamId());
     const { masterKey, masterPasswordHash } = createMasterPasswordHash(password, teamId);
 
-    // 2. Resolve the node + its credentials — node_permissions is gated on the
+    // 3. Resolve the node + its credentials — node_permissions is gated on the
     //    password hash, so a wrong password is rejected here before any payment.
     const permRes = await this.#sdk.GetWalletNodePermissions({
       id: walletId,
@@ -101,14 +124,14 @@ export class Transactions {
       );
     }
 
-    // 3. Decrypt the admin macaroon in-process (reusing the master key).
+    // 4. Decrypt the admin macaroon in-process (reusing the master key).
     const macaroon = decryptAdminMacaroonWithMasterKey({
       masterKey,
       encryptedSymmetricKey: wallet.node_permissions.encrypted_symmetric_key,
       encryptedMacaroon: node.encryptedMacaroon,
     });
 
-    // 4. Create the send transaction → backend returns the bolt11 to pay.
+    // 5. Create the send transaction → backend returns the bolt11 to pay.
     const createRes = await this.#sdk.CreateSendTransaction({
       input: buildCreateSendInput(params),
     });
@@ -117,7 +140,7 @@ export class Transactions {
       throw new PaymentSendError('Backend did not return a payment request.');
     }
 
-    // 5. Execute the payment against the node.
+    // 6. Execute the payment against the node.
     const onStatus = onUpdate
       ? (status: PaymentLifecycleStatus) => onUpdate({ status })
       : undefined;

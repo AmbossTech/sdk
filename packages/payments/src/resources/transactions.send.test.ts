@@ -32,13 +32,20 @@ async function startNode(lines: object[]): Promise<string> {
   return `http://127.0.0.1:${addr.port}`;
 }
 
-/** Fake GraphQLClient that answers the three operations send() issues. */
-function fakeClient(restHost: string): GraphQLClient {
+/** Fake GraphQLClient that answers the operations send() issues. */
+function fakeClient(restHost: string, environmentType: 'LIVE' | 'SANDBOX' = 'LIVE'): GraphQLClient {
   const masterKey = deriveMasterKey(PASSWORD, TEAM_ID);
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
   const encrypted_macaroon = nip44Encrypt(MACAROON_HEX, SYMMETRIC_KEY);
 
   const request = async ({ document }: { document: string }): Promise<unknown> => {
+    if (document.includes('GetWalletEnvironmentType')) {
+      return {
+        payment: {
+          wallet: { find_one: { id: 'w1', environment: { id: 'e1', type: environmentType } } },
+        },
+      };
+    }
     if (document.includes('GetWalletNodePermissions')) {
       return {
         payment: {
@@ -104,6 +111,21 @@ describe('Transactions.send', () => {
     assert.equal(result.payment.paymentHash, 'ph');
     assert.equal(result.transaction.payment_request, 'lnbc1xyz');
     assert.deepEqual(statuses, ['IN_FLIGHT', 'SUCCEEDED']);
+  });
+
+  it('creates a sandbox send without a password and returns payment: null', async () => {
+    // No node should be contacted for sandbox — point at an unroutable host
+    // so any accidental node call would fail the test.
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+
+    const result = await transactions.send({
+      walletId: 'w1',
+      feeLimitSats: '10',
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.equal(result.payment, null);
+    assert.equal(result.transaction.payment_request, 'lnbc1xyz');
   });
 
   it('surfaces a wrong password as a DecryptionError before paying', async () => {
