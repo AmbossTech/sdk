@@ -151,10 +151,9 @@ await payments.environments.delete(id);
 ### Wallets
 
 ```ts
-await payments.wallets.list({ environmentId });
-await payments.wallets.get(id);
+await payments.wallets.list({ environmentId }); // returns trimmed wallets (no balance/nodes)
+await payments.wallets.get(id); // returns the full wallet record
 await payments.wallets.create({ environment_id, asset_id, name });
-await payments.wallets.addNode({ wallet_id, node_id });
 await payments.wallets.delete(id);
 ```
 
@@ -170,7 +169,62 @@ await payments.transactions.createReceive({
 });
 ```
 
-> Send-side transactions and transaction list are not exposed in v1. They will land in a future release.
+#### Sending
+
+`transactions.send` mirrors the dashboard send flow without the UI. It creates the
+send transaction, decrypts the node admin macaroon **in-process** using the team
+password (the password never leaves your process and is never sent to the API),
+then executes the payment directly against the node's REST endpoint, resolving
+with the terminal result.
+
+```ts
+const { transaction, payment } = await payments.transactions.send({
+  walletId,
+  password, // team password — used only to decrypt the node macaroon locally
+  feeLimitSats: '50',
+  destination: { bolt11: 'lnbc1...' },
+  // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
+  onUpdate: ({ status }) => console.log(status), // 'IN_FLIGHT' | ...
+});
+
+payment.status; // 'SUCCEEDED' | 'FAILED'
+payment.paymentHash;
+```
+
+Base-asset wallets pay over LND; Taproot Asset wallets pay over litd — the SDK
+selects the endpoint automatically from the wallet's asset. A wrong password
+throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
+
+**Sandbox wallets** need no node, no macaroon, and no password — just call
+`send` and the backend settles the transaction for you. `payment` comes back
+`null`; observe the outcome via webhooks or by polling the transaction status.
+The backend settles asynchronously per the `amb_sandbox_behavior` metadata
+(`complete` / `fail` / `expire`; default `expire`):
+
+```ts
+const { transaction, payment } = await payments.transactions.send({
+  walletId, // a sandbox wallet — no password required
+  feeLimitSats: '50',
+  destination: { bolt11: 'lnbc1...' },
+  metadata: { amb_sandbox_behavior: 'complete' }, // force success in sandbox
+});
+
+payment; // null — settlement happens server-side
+```
+
+## Examples
+
+Runnable scripts live in [`examples/`](./examples). They run against a live API
+using credentials from `examples/.env` (gitignored):
+
+```bash
+pnpm build
+cp examples/.env.example examples/.env   # then fill in AMBOSS_API_KEY
+node --env-file=examples/.env examples/send.ts
+```
+
+`send.ts` lists your environments and wallets, then optionally sends a payment.
+See [`examples/README.md`](./examples/README.md) for details.
 
 ## Errors
 

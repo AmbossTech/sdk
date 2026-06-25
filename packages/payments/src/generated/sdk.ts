@@ -1584,6 +1584,11 @@ export type DeleteEnvironmentMutationVariables = Exact<{
 
 export type DeleteEnvironmentMutation = { payment: { environment: { delete: boolean } } };
 
+export type GetTeamIdQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetTeamIdQuery = { user: { id: string, team: { id: string } } };
+
 export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
 
 export type CreateReceiveTransactionMutationVariables = Exact<{
@@ -1592,6 +1597,28 @@ export type CreateReceiveTransactionMutationVariables = Exact<{
 
 
 export type CreateReceiveTransactionMutation = { payment: { transaction: { create_receive: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
+
+export type CreateSendTransactionMutationVariables = Exact<{
+  input: CreateSendTransactionInput;
+}>;
+
+
+export type CreateSendTransactionMutation = { payment: { transaction: { create_send: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
+
+export type GetWalletEnvironmentTypeQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type GetWalletEnvironmentTypeQuery = { payment: { wallet: { find_one: { id: string, environment: { id: string, type: PaymentsEnvironmentType } } } } };
+
+export type GetWalletNodePermissionsQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+  password_hash?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type GetWalletNodePermissionsQuery = { payment: { wallet: { find_one: { id: string, asset: { id: string, type: BitcoinAssetType, taproot_asset_details?: { group_key?: string | null } | null }, node_permissions: { id: string, encrypted_symmetric_key: string, nodes: Array<{ id: string, node_id: string, network: DeployedNodeNetwork, encrypted_macaroon: string, tls_cert?: string | null, sockets: { id: string, lnd?: { id: string, rest: string } | null, litd?: { id: string, rest: string } | null } }> } } } } };
 
 export type PaymentsWalletFieldsFragment = { id: string, name: string, asset_id: string, environment_id: string, created_at: string, updated_at: string, balance: { balance: string, received: string, sent: string }, asset: { id: string, symbol: string, precision: number, type: BitcoinAssetType, description?: string | null, website_url?: string | null, taproot_asset_details?: { asset_id?: string | null, group_key?: string | null, universe?: string | null } | null }, environment: { id: string, name: string, type: PaymentsEnvironmentType, wallet_count: number, created_at: string, updated_at: string }, nodes: Array<{ id: string, alias?: string | null, pubkey?: string | null, state: DeployedNodeState, type: DeployedNodeType }> };
 
@@ -1782,6 +1809,16 @@ export const DeleteEnvironmentDocument = `
   }
 }
     `;
+export const GetTeamIdDocument = `
+    query GetTeamId {
+  user {
+    id
+    team {
+      id
+    }
+  }
+}
+    `;
 export const CreateReceiveTransactionDocument = `
     mutation CreateReceiveTransaction($input: CreateReceiveTransactionInput!) {
   payment {
@@ -1793,6 +1830,72 @@ export const CreateReceiveTransactionDocument = `
   }
 }
     ${PaymentsTransactionFieldsFragmentDoc}`;
+export const CreateSendTransactionDocument = `
+    mutation CreateSendTransaction($input: CreateSendTransactionInput!) {
+  payment {
+    transaction {
+      create_send(input: $input) {
+        ...PaymentsTransactionFields
+      }
+    }
+  }
+}
+    ${PaymentsTransactionFieldsFragmentDoc}`;
+export const GetWalletEnvironmentTypeDocument = `
+    query GetWalletEnvironmentType($id: String!) {
+  payment {
+    wallet {
+      find_one(id: $id) {
+        id
+        environment {
+          id
+          type
+        }
+      }
+    }
+  }
+}
+    `;
+export const GetWalletNodePermissionsDocument = `
+    query GetWalletNodePermissions($id: String!, $password_hash: String) {
+  payment {
+    wallet {
+      find_one(id: $id) {
+        id
+        asset {
+          id
+          type
+          taproot_asset_details {
+            group_key
+          }
+        }
+        node_permissions(password_hash: $password_hash) {
+          id
+          encrypted_symmetric_key
+          nodes {
+            id
+            node_id
+            network
+            encrypted_macaroon
+            tls_cert
+            sockets {
+              id
+              lnd {
+                id
+                rest
+              }
+              litd {
+                id
+                rest
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    `;
 export const ListWalletsDocument = `
     query ListWallets($environmentId: String!) {
   payment {
@@ -1857,8 +1960,20 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     DeleteEnvironment(variables: DeleteEnvironmentMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<DeleteEnvironmentMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<DeleteEnvironmentMutation>({ document: DeleteEnvironmentDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'DeleteEnvironment', 'mutation', variables);
     },
+    GetTeamId(variables?: GetTeamIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTeamIdQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetTeamIdQuery>({ document: GetTeamIdDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTeamId', 'query', variables);
+    },
     CreateReceiveTransaction(variables: CreateReceiveTransactionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateReceiveTransactionMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateReceiveTransactionMutation>({ document: CreateReceiveTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateReceiveTransaction', 'mutation', variables);
+    },
+    CreateSendTransaction(variables: CreateSendTransactionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateSendTransactionMutation> {
+      return withWrapper((wrappedRequestHeaders) => client.request<CreateSendTransactionMutation>({ document: CreateSendTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateSendTransaction', 'mutation', variables);
+    },
+    GetWalletEnvironmentType(variables: GetWalletEnvironmentTypeQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletEnvironmentTypeQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetWalletEnvironmentTypeQuery>({ document: GetWalletEnvironmentTypeDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletEnvironmentType', 'query', variables);
+    },
+    GetWalletNodePermissions(variables: GetWalletNodePermissionsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletNodePermissionsQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetWalletNodePermissionsQuery>({ document: GetWalletNodePermissionsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletNodePermissions', 'query', variables);
     },
     ListWallets(variables: ListWalletsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<ListWalletsQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<ListWalletsQuery>({ document: ListWalletsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'ListWallets', 'query', variables);

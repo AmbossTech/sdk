@@ -1,0 +1,8 @@
+query GetTeamId {
+  user {
+    id
+    team {
+      id
+    }
+  }
+}
