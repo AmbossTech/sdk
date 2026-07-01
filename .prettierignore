@@ -6,3 +6,4 @@ dist
 *.lock
 pnpm-lock.yaml
 .changeset
+*.md
