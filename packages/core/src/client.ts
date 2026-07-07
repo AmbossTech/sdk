@@ -12,8 +12,11 @@ export class AmbossClient {
 
   constructor(config: ClientConfig = {}) {
     this.config = AmbossClient.resolveConfig(config);
+    const { fetch: fetchImpl, timeoutMs } = this.config;
     this.graphqlClient = new GraphQLClient(this.config.baseUrl, {
-      fetch: this.config.fetch,
+      // Apply timeoutMs as a per-request abort signal, honoring a caller-supplied signal if present.
+      fetch: (input, init) =>
+        fetchImpl(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) }),
       headers: this.buildHeaders(),
     });
   }
