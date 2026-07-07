@@ -66,4 +66,36 @@ describe('AmbossClient', () => {
     );
     assert.equal(new Probe({ serviceApiKey: 'amb_live_test' }).check(), 'amb_live_test');
   });
+
+  it('applies timeoutMs as an abort signal on requests', async () => {
+    let receivedSignal: AbortSignal | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      receivedSignal = init?.signal ?? undefined;
+      return new Response(JSON.stringify({ data: { ok: true } }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    class Probe extends AmbossClient {
+      run(): Promise<unknown> {
+        return this.gqlRequest('{ ok }', undefined, 'Probe');
+      }
+    }
+    await new Probe({ apiKey: 'sk_test', fetch: fetchImpl, timeoutMs: 5000 }).run();
+    assert.ok(receivedSignal instanceof AbortSignal);
+  });
+
+  it('rejects a request that exceeds timeoutMs', async () => {
+    const hangingFetch: typeof fetch = (_input, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      });
+    class Probe extends AmbossClient {
+      run(): Promise<unknown> {
+        return this.gqlRequest('{ ok }', undefined, 'Probe');
+      }
+    }
+    await assert.rejects(() =>
+      new Probe({ apiKey: 'sk_test', fetch: hangingFetch, timeoutMs: 10 }).run(),
+    );
+  });
 });
