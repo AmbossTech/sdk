@@ -18,18 +18,18 @@ Requires Node.js ≥ 18.18.
 import { Payments } from '@ambosstech/payments';
 
 const payments = new Payments({
-  apiKey: process.env.AMBOSS_API_KEY,
+  serviceApiKey: process.env.AMBOSS_API_KEY,
   webhookSecret: process.env.AMBOSS_WEBHOOK_SECRET,
 });
 
-// Verify an incoming webhook (no apiKey required)
+// Verify an incoming webhook (no key required)
 const event = payments.webhooks.verify({
   payload: rawBody,
   signature: req.headers['x-webhook-signature'],
   timestamp: req.headers['x-webhook-timestamp'],
 });
 
-// Call the API (requires apiKey)
+// Call the API (requires serviceApiKey)
 const envs = await payments.environments.list();
 const wallets = await payments.wallets.list({ environmentId: envs[0].id });
 ```
@@ -38,7 +38,7 @@ const wallets = await payments.wallets.list({ environmentId: envs[0].id });
 
 ```ts
 new Payments({
-  apiKey?: string,             // omit for webhook-only use
+  serviceApiKey?: string,      // scoped payments key (sent as x-api-key); omit for webhook-only use
   webhookSecret?: string,      // omit if you only call the API
   baseUrl?: string,            // default: https://rails.amboss.tech/graphql
   fetch?: typeof fetch,        // override for tests / non-Node runtimes
@@ -137,7 +137,7 @@ All verification failures throw `WebhookVerificationError` with a typed `code`:
 
 ## API resources
 
-All resource calls require `apiKey`. Accessing `payments.environments`, `payments.wallets`, or `payments.transactions` without `apiKey` throws `ConfigError`.
+All resource calls require `serviceApiKey`. Accessing `payments.environments`, `payments.wallets`, or `payments.transactions` without `serviceApiKey` throws `ConfigError`.
 
 ### Environments
 
@@ -181,6 +181,7 @@ with the terminal result.
 const { transaction, payment } = await payments.transactions.send({
   walletId,
   password, // team password — used only to decrypt the node macaroon locally
+  teamId, // required with a serviceApiKey (Argon2 salt); omit and it's resolved from the user
   feeLimitSats: '50',
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
