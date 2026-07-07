@@ -6,12 +6,13 @@ import {
   type PaymentsWalletFieldsFragment,
   type SimplePaymentsWalletFieldsFragment,
 } from '../generated/sdk.js';
+import { translateSdkErrors } from './sdkErrors.js';
 
 export class Wallets {
   readonly #sdk: ReturnType<typeof getSdk>;
 
   constructor(graphqlClient: GraphQLClient) {
-    this.#sdk = getSdk(graphqlClient);
+    this.#sdk = getSdk(graphqlClient, translateSdkErrors);
   }
 
   async list(params: { environmentId: string }): Promise<SimplePaymentsWalletFieldsFragment[]> {
