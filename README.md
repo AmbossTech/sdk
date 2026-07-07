@@ -23,55 +23,23 @@ pnpm add @ambosstech/payments
 import { Payments } from '@ambosstech/payments';
 
 const payments = new Payments({
-  apiKey: process.env.AMBOSS_API_KEY,
+  serviceApiKey: process.env.AMBOSS_API_KEY,
   webhookSecret: process.env.AMBOSS_WEBHOOK_SECRET,
 });
 
-// verify an incoming webhook (no apiKey required for this)
+// verify an incoming webhook (no key required for this)
 const event = payments.webhooks.verify({
   payload: rawBody,
   signature: headers['x-webhook-signature'],
   timestamp: headers['x-webhook-timestamp'],
 });
 
-// call the API (requires apiKey)
-const wallets = await payments.wallets.list({ environmentId: env.id });
+// call the API (requires serviceApiKey)
+const [environment] = await payments.environments.list();
+const wallets = await payments.wallets.list({ environmentId: environment.id });
 ```
 
 See [`packages/payments/README.md`](./packages/payments/README.md) for full docs.
-
-## Development
-
-```bash
-pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-Refresh the pinned GraphQL schema from the dev API:
-
-```bash
-pnpm --filter @ambosstech/core run refresh-schema
-```
-
-Regenerate typed GraphQL SDK in payments:
-
-```bash
-pnpm --filter @ambosstech/payments run codegen
-```
-
-## Releasing
-
-This repo uses [Changesets](https://github.com/changesets/changesets) for versioning and publishing.
-
-```bash
-pnpm changeset            # add a changeset describing your change
-pnpm changeset:version    # bump versions + update changelogs
-pnpm changeset:publish    # build + publish to npm
-```
-
-CI publishes automatically when changeset PRs merge to `main`.
 
 ## License
 
