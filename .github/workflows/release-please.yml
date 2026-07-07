@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # manual trigger to (re)publish the current package versions
 
 permissions:
   contents: write
@@ -24,7 +25,7 @@ jobs:
 
   publish:
     needs: release-please
-    if: ${{ needs.release-please.outputs.paths_released != '[]' }}
+    if: ${{ needs.release-please.outputs.paths_released != '[]' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
