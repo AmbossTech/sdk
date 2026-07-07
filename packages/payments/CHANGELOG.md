@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/AmbossTech/sdk/compare/payments-v0.1.0...payments-v0.1.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* translate resource-call errors into ApiError ([#18](https://github.com/AmbossTech/sdk/issues/18)) ([82407cc](https://github.com/AmbossTech/sdk/commit/82407ccf3880988b35c02d637ec8a32db211860e))
+
 ## [0.1.0](https://github.com/AmbossTech/sdk/compare/payments-v0.0.1...payments-v0.1.0) (2026-07-01)
 
 
