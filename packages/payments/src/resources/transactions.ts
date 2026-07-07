@@ -12,6 +12,7 @@ import {
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
 import type { PaymentLifecycleStatus } from '../node/types.js';
+import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type { SendDestination, SendParams, SendResult } from './transactions.types.js';
 
@@ -57,7 +58,7 @@ export class Transactions {
   #teamId?: string;
 
   constructor(graphqlClient: GraphQLClient) {
-    this.#sdk = getSdk(graphqlClient);
+    this.#sdk = getSdk(graphqlClient, translateSdkErrors);
   }
 
   async createReceive(

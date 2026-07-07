@@ -6,12 +6,13 @@ import {
   type PaymentsEnvironmentFieldsFragment,
   type SimplePaymentsEnvironmentFieldsFragment,
 } from '../generated/sdk.js';
+import { translateSdkErrors } from './sdkErrors.js';
 
 export class Environments {
   readonly #sdk: ReturnType<typeof getSdk>;
 
   constructor(graphqlClient: GraphQLClient) {
-    this.#sdk = getSdk(graphqlClient);
+    this.#sdk = getSdk(graphqlClient, translateSdkErrors);
   }
 
   async list(): Promise<SimplePaymentsEnvironmentFieldsFragment[]> {
