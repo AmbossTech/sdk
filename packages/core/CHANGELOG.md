@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/AmbossTech/sdk/compare/core-v0.1.0...core-v0.1.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* enforce configured request timeout ([#15](https://github.com/AmbossTech/sdk/issues/15)) ([7fb39c0](https://github.com/AmbossTech/sdk/commit/7fb39c01834772965fe6a7b6cc6941326a1672bc))
+
 ## [0.1.0](https://github.com/AmbossTech/sdk/compare/core-v0.0.1...core-v0.1.0) (2026-07-01)
 
 

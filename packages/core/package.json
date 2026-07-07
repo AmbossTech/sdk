@@ -1,6 +1,6 @@
 {
   "name": "@ambosstech/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared client and HTTP/GraphQL transport for Amboss SDKs",
   "license": "MIT",
   "repository": {
