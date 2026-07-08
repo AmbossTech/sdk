@@ -87,7 +87,14 @@ describe('AmbossClient', () => {
   it('rejects a request that exceeds timeoutMs', async () => {
     const hangingFetch: typeof fetch = (_input, init) =>
       new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        // The client aborts via AbortSignal.timeout(timeoutMs), whose timer Node
+        // unrefs. This ref'd timer keeps the loop alive so that abort actually
+        // fires instead of the loop draining first (a flake on Node 22.x).
+        const keepAlive = setTimeout(() => {}, 1000);
+        init?.signal?.addEventListener('abort', () => {
+          clearTimeout(keepAlive);
+          reject(new Error('aborted'));
+        });
       });
     class Probe extends AmbossClient {
       run(): Promise<unknown> {

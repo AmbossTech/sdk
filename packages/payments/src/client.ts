@@ -35,7 +35,7 @@ export class Payments extends AmbossClient {
 
   get transactions(): Transactions {
     this.requireServiceApiKey('payments.transactions');
-    this.#transactions ??= new Transactions(this.graphqlClient);
+    this.#transactions ??= new Transactions(this.graphqlClient, Boolean(this.config.apiKey));
     return this.#transactions;
   }
 

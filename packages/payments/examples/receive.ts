@@ -43,10 +43,10 @@ async function main(): Promise<void> {
       console.log('(no environments found for this API key)');
     }
     for (const environment of environments) {
-      console.log('environment:', JSON.stringify(environment));
+      console.log(`${environment.name} (${environment.type}) — ${environment.id}`);
       const wallets = await payments.wallets.list({ environmentId: environment.id });
       for (const wallet of wallets) {
-        console.log('  wallet:', JSON.stringify(wallet));
+        console.log(`  ${wallet.name} [${wallet.asset.symbol}] — ${wallet.id}`);
       }
     }
     console.log('\nSet WALLET_ID (and optionally RECEIVE_AMOUNT_SATS) to mint an invoice.');
