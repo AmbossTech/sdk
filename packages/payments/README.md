@@ -159,14 +159,23 @@ await payments.wallets.delete(id);
 
 ### Transactions
 
+#### Receiving
+
+`transactions.createReceive` generates a Lightning invoice for a wallet. Unlike
+sending, the backend mints the invoice on the node itself — no team password or
+node macaroon needed, and it works the same for sandbox and live wallets.
+
 ```ts
-await payments.transactions.createReceive({
-  wallet_id,
-  amount,
-  idempotency_key,
-  description?,
-  expires_in?,
+const transaction = await payments.transactions.createReceive({
+  wallet_id: walletId,
+  amount: '1000', // in the wallet asset's base unit (sats for BTC)
+  description: 'Order #1234', // optional
+  expires_in_seconds: 3600, // optional
+  idempotency_key, // optional
 });
+
+transaction.payment_request; // the BOLT11 invoice to share with the payer
+transaction.payment_hash;
 ```
 
 #### Sending

@@ -46,3 +46,18 @@ Destinations (set one):
 
 The team password is used only to decrypt the node admin macaroon locally; it is
 never sent to the API. See `.env.example` for every supported variable.
+
+### `receive.ts` — discovery + mint an invoice
+
+1. **If** `WALLET_ID` is unset, lists your environments and wallets so you can
+   grab one.
+2. **If** `WALLET_ID` is set, mints a Lightning invoice via
+   `payments.transactions.createReceive` and prints the BOLT11 `payment_request`.
+
+Receiving needs no team password or macaroon and works the same for sandbox and
+live wallets. Set `RECEIVE_AMOUNT_SATS` (default `1000`) and optionally
+`RECEIVE_DESCRIPTION`.
+
+```bash
+node --env-file=examples/.env examples/receive.ts
+```
