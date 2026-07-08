@@ -129,6 +129,21 @@ describe('Transactions.send', () => {
     assert.equal(result.transaction.payment_request, 'lnbc1xyz');
   });
 
+  it('throws a helpful error when teamId is unresolvable (service API key only)', async () => {
+    // canResolveTeamId=false ⇒ no `user` query available; teamId must be passed.
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'), false);
+
+    await assert.rejects(
+      transactions.send({
+        walletId: 'w1',
+        password: PASSWORD,
+        feeLimitSats: '10',
+        destination: { bolt11: 'lnbc1xyz' },
+      }),
+      /teamId is required .* service API key/,
+    );
+  });
+
   it('surfaces a wrong password as a DecryptionError before paying', async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
     const transactions = new Transactions(fakeClient(host));

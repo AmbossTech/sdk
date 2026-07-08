@@ -55,10 +55,17 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
+  readonly #canResolveTeamId: boolean;
   #teamId?: string;
 
-  constructor(graphqlClient: GraphQLClient) {
+  /**
+   * @param canResolveTeamId whether the client can read the `user` query to
+   *   resolve the teamId. False when only a service API key is configured, in
+   *   which case callers must pass `teamId` to `send()` explicitly.
+   */
+  constructor(graphqlClient: GraphQLClient, canResolveTeamId = true) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
+    this.#canResolveTeamId = canResolveTeamId;
   }
 
   async createReceive(
@@ -184,6 +191,13 @@ export class Transactions {
 
   async #resolveTeamId(): Promise<string> {
     if (this.#teamId) return this.#teamId;
+    if (!this.#canResolveTeamId) {
+      throw new PaymentSendError(
+        'A teamId is required to send from a live wallet with a service API key. ' +
+          'Pass { teamId } to send() — it cannot be resolved from a service API key, ' +
+          'which has no `user` access.',
+      );
+    }
     const res = await this.#sdk.GetTeamId();
     this.#teamId = res.user.team.id;
     return this.#teamId;
