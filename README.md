@@ -41,6 +41,11 @@ const wallets = await payments.wallets.list({ environmentId: environment.id });
 
 See [`packages/payments/README.md`](./packages/payments/README.md) for full docs.
 
+## Docs
+
+- [`docs/INTEGRATION.md`](./docs/INTEGRATION.md) — end-to-end integration guide (receive, send, webhooks, production checklist). Self-contained — hand it to your team or your AI coding agent.
+- [`AGENTS.md`](./AGENTS.md) — guide for AI agents and contributors working on this repo.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
