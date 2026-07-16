@@ -42,6 +42,7 @@ export async function sendLndPayment(params: SendLndPaymentParams): Promise<Node
         terminal = {
           status: result.status,
           paymentHash: result.payment_hash,
+          preimage: result.payment_preimage,
           feeSat: result.fee_sat,
           failureReason: result.failure_reason,
         };
