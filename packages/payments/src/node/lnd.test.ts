@@ -61,7 +61,7 @@ describe('sendLndPayment', () => {
     assert.deepEqual(result, {
       status: 'SUCCEEDED',
       paymentHash: 'abc',
-      preimage: 'def',
+      paymentPreimage: 'def',
       feeSat: '3',
       failureReason: undefined,
     });

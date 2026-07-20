@@ -67,7 +67,7 @@ export interface NodePaymentResult {
   status: 'SUCCEEDED' | 'FAILED';
   paymentHash?: string;
   /** Payment preimage (proof of payment). Present on SUCCEEDED payments. */
-  preimage?: string;
+  paymentPreimage?: string;
   feeSat?: string;
   failureReason?: string;
 }
