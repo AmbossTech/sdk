@@ -13,6 +13,7 @@ export interface SendLndPaymentBody {
 export interface LndPaymentUpdate {
   result?: {
     payment_hash?: string;
+    payment_preimage?: string;
     value_sat?: string;
     status: PaymentLifecycleStatus;
     fee_sat?: string;
@@ -48,6 +49,7 @@ export interface AssetPaymentUpdate {
   result?: {
     payment_result?: {
       payment_hash?: string;
+      payment_preimage?: string;
       value_sat?: string;
       status: string;
       fee_sat?: string;
@@ -64,6 +66,8 @@ export interface AssetPaymentUpdate {
 export interface NodePaymentResult {
   status: 'SUCCEEDED' | 'FAILED';
   paymentHash?: string;
+  /** Payment preimage (proof of payment). Present on SUCCEEDED payments. */
+  paymentPreimage?: string;
   feeSat?: string;
   failureReason?: string;
 }

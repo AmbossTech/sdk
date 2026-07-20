@@ -48,6 +48,7 @@ export async function sendAssetPayment(params: SendAssetPaymentParams): Promise<
         terminal = {
           status: result.status,
           paymentHash: result.payment_hash,
+          paymentPreimage: result.payment_preimage,
           feeSat: result.fee_sat,
           failureReason: result.failure_reason,
         };

@@ -38,7 +38,14 @@ describe('sendLndPayment', () => {
     const { host, lastMacaroonHeader } = await startServer((_req, res) =>
       writeLines(res, [
         { result: { status: 'IN_FLIGHT' } },
-        { result: { status: 'SUCCEEDED', payment_hash: 'abc', fee_sat: '3' } },
+        {
+          result: {
+            status: 'SUCCEEDED',
+            payment_hash: 'abc',
+            payment_preimage: 'def',
+            fee_sat: '3',
+          },
+        },
       ]),
     );
 
@@ -54,6 +61,7 @@ describe('sendLndPayment', () => {
     assert.deepEqual(result, {
       status: 'SUCCEEDED',
       paymentHash: 'abc',
+      paymentPreimage: 'def',
       feeSat: '3',
       failureReason: undefined,
     });
