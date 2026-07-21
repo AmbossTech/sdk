@@ -741,6 +741,7 @@ type PaymentsWallet {
   name: String!
   node_permissions(password_hash: String): WalletNodePermissions!
   nodes: [DeployedNode!]!
+  team_id: String!
   updated_at: String!
 }
 

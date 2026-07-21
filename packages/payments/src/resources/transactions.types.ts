@@ -25,9 +25,9 @@ export interface SendParams {
    */
   password?: string;
   /**
-   * Team id — the Argon2 salt for key derivation. Required when using a service
-   * API key (which cannot read the `user` query); if omitted, it is resolved
-   * from the authenticated user.
+   * Team id — the Argon2 salt for key derivation. Optional: it is resolved
+   * automatically from the wallet. Provide it only to override the resolved
+   * value.
    */
   teamId?: string;
   /** Maximum routing fee, in satoshis. */
