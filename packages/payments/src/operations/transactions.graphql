@@ -48,11 +48,12 @@ mutation CreateSendTransaction($input: CreateSendTransactionInput!) {
   }
 }
 
-query GetWalletEnvironmentType($id: String!) {
+query GetWalletSendContext($id: String!) {
   payment {
     wallet {
       find_one(id: $id) {
         id
+        team_id
         environment {
           id
           type

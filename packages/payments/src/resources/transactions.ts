@@ -55,17 +55,9 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
-  readonly #canResolveTeamId: boolean;
-  #teamId?: string;
 
-  /**
-   * @param canResolveTeamId whether the client can read the `user` query to
-   *   resolve the teamId. False when only a service API key is configured, in
-   *   which case callers must pass `teamId` to `send()` explicitly.
-   */
-  constructor(graphqlClient: GraphQLClient, canResolveTeamId = true) {
+  constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
-    this.#canResolveTeamId = canResolveTeamId;
   }
 
   async createReceive(
@@ -94,10 +86,13 @@ export class Transactions {
     const { walletId, password, feeLimitSats, destination, onUpdate, signal } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
-    // 1. Detect sandbox up-front (no password needed). Sandbox wallets settle
-    //    server-side, so the SDK only has to create the send.
-    const envRes = await this.#sdk.GetWalletEnvironmentType({ id: walletId });
-    const isSandbox = envRes.payment.wallet.find_one.environment.type === 'SANDBOX';
+    // 1. Fetch the wallet's send context up-front: the environment type (to
+    //    detect sandbox) and the team id. Both are readable with only the
+    //    service API key — no team password required yet. Sandbox wallets
+    //    settle server-side, so the SDK only has to create the send.
+    const ctxRes = await this.#sdk.GetWalletSendContext({ id: walletId });
+    const walletCtx = ctxRes.payment.wallet.find_one;
+    const isSandbox = walletCtx.environment.type === 'SANDBOX';
 
     if (isSandbox) {
       const createRes = await this.#sdk.CreateSendTransaction({
@@ -107,12 +102,12 @@ export class Transactions {
     }
 
     // 2. Live wallet — a team password is required to decrypt the node macaroon.
-    //    teamId is the Argon2 salt; callers using a service API key (no `user`
-    //    access) must supply it.
+    //    teamId is the Argon2 salt; it comes back on the wallet above, so no
+    //    separate lookup is needed. Callers may still override it explicitly.
     if (!password) {
       throw new PaymentSendError('A team password is required to send from a live wallet.');
     }
-    const teamId = params.teamId ?? (await this.#resolveTeamId());
+    const teamId = params.teamId ?? walletCtx.team_id;
     const { masterKey, masterPasswordHash } = createMasterPasswordHash(password, teamId);
 
     // 3. Resolve the node + its credentials — node_permissions is gated on the
@@ -187,19 +182,5 @@ export class Transactions {
         });
 
     return { transaction, payment };
-  }
-
-  async #resolveTeamId(): Promise<string> {
-    if (this.#teamId) return this.#teamId;
-    if (!this.#canResolveTeamId) {
-      throw new PaymentSendError(
-        'A teamId is required to send from a live wallet with a service API key. ' +
-          'Pass { teamId } to send() — it cannot be resolved from a service API key, ' +
-          'which has no `user` access.',
-      );
-    }
-    const res = await this.#sdk.GetTeamId();
-    this.#teamId = res.user.team.id;
-    return this.#teamId;
   }
 }

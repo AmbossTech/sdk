@@ -840,6 +840,7 @@ export type PaymentsWallet = {
   name: Scalars['String']['output'];
   node_permissions: WalletNodePermissions;
   nodes: Array<DeployedNode>;
+  team_id: Scalars['String']['output'];
   updated_at: Scalars['String']['output'];
 };
 
@@ -1584,11 +1585,6 @@ export type DeleteEnvironmentMutationVariables = Exact<{
 
 export type DeleteEnvironmentMutation = { payment: { environment: { delete: boolean } } };
 
-export type GetTeamIdQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type GetTeamIdQuery = { user: { id: string, team: { id: string } } };
-
 export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
 
 export type CreateReceiveTransactionMutationVariables = Exact<{
@@ -1605,12 +1601,12 @@ export type CreateSendTransactionMutationVariables = Exact<{
 
 export type CreateSendTransactionMutation = { payment: { transaction: { create_send: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
 
-export type GetWalletEnvironmentTypeQueryVariables = Exact<{
+export type GetWalletSendContextQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetWalletEnvironmentTypeQuery = { payment: { wallet: { find_one: { id: string, environment: { id: string, type: PaymentsEnvironmentType } } } } };
+export type GetWalletSendContextQuery = { payment: { wallet: { find_one: { id: string, team_id: string, environment: { id: string, type: PaymentsEnvironmentType } } } } };
 
 export type GetWalletNodePermissionsQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -1809,16 +1805,6 @@ export const DeleteEnvironmentDocument = `
   }
 }
     `;
-export const GetTeamIdDocument = `
-    query GetTeamId {
-  user {
-    id
-    team {
-      id
-    }
-  }
-}
-    `;
 export const CreateReceiveTransactionDocument = `
     mutation CreateReceiveTransaction($input: CreateReceiveTransactionInput!) {
   payment {
@@ -1841,12 +1827,13 @@ export const CreateSendTransactionDocument = `
   }
 }
     ${PaymentsTransactionFieldsFragmentDoc}`;
-export const GetWalletEnvironmentTypeDocument = `
-    query GetWalletEnvironmentType($id: String!) {
+export const GetWalletSendContextDocument = `
+    query GetWalletSendContext($id: String!) {
   payment {
     wallet {
       find_one(id: $id) {
         id
+        team_id
         environment {
           id
           type
@@ -1960,17 +1947,14 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     DeleteEnvironment(variables: DeleteEnvironmentMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<DeleteEnvironmentMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<DeleteEnvironmentMutation>({ document: DeleteEnvironmentDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'DeleteEnvironment', 'mutation', variables);
     },
-    GetTeamId(variables?: GetTeamIdQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTeamIdQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTeamIdQuery>({ document: GetTeamIdDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTeamId', 'query', variables);
-    },
     CreateReceiveTransaction(variables: CreateReceiveTransactionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateReceiveTransactionMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateReceiveTransactionMutation>({ document: CreateReceiveTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateReceiveTransaction', 'mutation', variables);
     },
     CreateSendTransaction(variables: CreateSendTransactionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateSendTransactionMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateSendTransactionMutation>({ document: CreateSendTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateSendTransaction', 'mutation', variables);
     },
-    GetWalletEnvironmentType(variables: GetWalletEnvironmentTypeQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletEnvironmentTypeQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetWalletEnvironmentTypeQuery>({ document: GetWalletEnvironmentTypeDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletEnvironmentType', 'query', variables);
+    GetWalletSendContext(variables: GetWalletSendContextQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletSendContextQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetWalletSendContextQuery>({ document: GetWalletSendContextDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletSendContext', 'query', variables);
     },
     GetWalletNodePermissions(variables: GetWalletNodePermissionsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetWalletNodePermissionsQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetWalletNodePermissionsQuery>({ document: GetWalletNodePermissionsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetWalletNodePermissions', 'query', variables);

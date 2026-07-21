@@ -39,10 +39,16 @@ function fakeClient(restHost: string, environmentType: 'LIVE' | 'SANDBOX' = 'LIV
   const encrypted_macaroon = nip44Encrypt(MACAROON_HEX, SYMMETRIC_KEY);
 
   const request = async ({ document }: { document: string }): Promise<unknown> => {
-    if (document.includes('GetWalletEnvironmentType')) {
+    if (document.includes('GetWalletSendContext')) {
       return {
         payment: {
-          wallet: { find_one: { id: 'w1', environment: { id: 'e1', type: environmentType } } },
+          wallet: {
+            find_one: {
+              id: 'w1',
+              team_id: TEAM_ID,
+              environment: { id: 'e1', type: environmentType },
+            },
+          },
         },
       };
     }
@@ -71,9 +77,6 @@ function fakeClient(restHost: string, environmentType: 'LIVE' | 'SANDBOX' = 'LIV
           },
         },
       };
-    }
-    if (document.includes('GetTeamId')) {
-      return { user: { id: 'u1', team: { id: TEAM_ID } } };
     }
     if (document.includes('CreateSendTransaction')) {
       return {
@@ -129,19 +132,22 @@ describe('Transactions.send', () => {
     assert.equal(result.transaction.payment_request, 'lnbc1xyz');
   });
 
-  it('throws a helpful error when teamId is unresolvable (service API key only)', async () => {
-    // canResolveTeamId=false ⇒ no `user` query available; teamId must be passed.
-    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'), false);
+  it('accepts an explicit teamId override', async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const transactions = new Transactions(fakeClient(host));
 
-    await assert.rejects(
-      transactions.send({
-        walletId: 'w1',
-        password: PASSWORD,
-        feeLimitSats: '10',
-        destination: { bolt11: 'lnbc1xyz' },
-      }),
-      /teamId is required .* service API key/,
-    );
+    const result = await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      teamId: TEAM_ID, // overrides the value resolved from the wallet
+      feeLimitSats: '10',
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(result.payment.status, 'SUCCEEDED');
   });
 
   it('surfaces a wrong password as a DecryptionError before paying', async () => {
