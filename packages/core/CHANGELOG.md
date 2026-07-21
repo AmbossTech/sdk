@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/AmbossTech/sdk/compare/core-v0.1.1...core-v0.1.2) (2026-07-21)
+
+
+### Bug Fixes
+
+* clear error when teamId is unresolvable with a service API key ([#23](https://github.com/AmbossTech/sdk/issues/23)) ([ebb4a0a](https://github.com/AmbossTech/sdk/commit/ebb4a0a6f51e438ca888517b1eba70e8caca3656))
+
 ## [0.1.1](https://github.com/AmbossTech/sdk/compare/core-v0.1.0...core-v0.1.1) (2026-07-07)
 
 

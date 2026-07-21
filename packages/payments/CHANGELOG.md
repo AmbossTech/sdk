@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/AmbossTech/sdk/compare/payments-v0.1.1...payments-v0.2.0) (2026-07-21)
+
+
+### Features
+
+* add receive option to Payments SDK [AMB-2753] ([ae56d6f](https://github.com/AmbossTech/sdk/commit/ae56d6fe5fa5a0f19bcfbe83efb9b29ed2ffbbda))
+
+
+### Bug Fixes
+
+* clear error when teamId is unresolvable with a service API key ([#23](https://github.com/AmbossTech/sdk/issues/23)) ([ebb4a0a](https://github.com/AmbossTech/sdk/commit/ebb4a0a6f51e438ca888517b1eba70e8caca3656))
+* **payments:** surface payment preimage on send result [AMB-2789] ([#25](https://github.com/AmbossTech/sdk/issues/25)) ([944f494](https://github.com/AmbossTech/sdk/commit/944f494c88793108a86da0a301bd1f39a8d3a580))
+
 ## [0.1.1](https://github.com/AmbossTech/sdk/compare/payments-v0.1.0...payments-v0.1.1) (2026-07-07)
 
 
