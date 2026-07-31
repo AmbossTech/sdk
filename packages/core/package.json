@@ -5,11 +5,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ambosstech/ambosstech-sdk.git",
+    "url": "git+https://github.com/AmbossTech/sdk.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/ambosstech/ambosstech-sdk/tree/main/packages/core",
-  "bugs": "https://github.com/ambosstech/ambosstech-sdk/issues",
+  "homepage": "https://github.com/AmbossTech/sdk/tree/main/packages/core",
+  "bugs": "https://github.com/AmbossTech/sdk/issues",
   "type": "module",
   "main": "./dist-cjs/index.js",
   "module": "./dist/index.js",
