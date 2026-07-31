@@ -19,30 +19,40 @@
     "sdk"
   ],
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist-cjs/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist-cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist-cjs/index.d.ts",
+        "default": "./dist-cjs/index.js"
+      }
     }
   },
   "files": [
     "dist",
+    "dist-cjs",
     "src"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.build.cjs.json && cp dist-cjs.package.json dist-cjs/package.json",
+    "clean": "rm -rf dist dist-cjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
+    "test:examples": "node examples/verify-webhook.mjs && node examples/verify-webhook.cjs",
+    "typecheck:examples": "tsc --noEmit -p tsconfig.examples.cjs.json",
     "codegen": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
     "@ambosstech/core": "workspace:*",
     "@noble/hashes": "^1.7.1",
     "graphql": "^16.10.0",
-    "graphql-request": "^7.1.2",
+    "graphql-request": "^7.4.0",
     "nostr-tools": "^2.11.0",
     "undici": "^7.0.0"
   },

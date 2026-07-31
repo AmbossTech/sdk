@@ -236,6 +236,10 @@ node --env-file=examples/.env examples/send.ts
 `send.ts` lists your environments and wallets, then optionally sends a payment.
 See [`examples/README.md`](./examples/README.md) for details.
 
+`verify-webhook.mjs` / `verify-webhook.cjs` need no API key — they sign and
+verify a webhook offline, exercising the ESM and CJS builds respectively.
+They double as the CI check for the dual build (`pnpm run test:examples`).
+
 ## Errors
 
 API errors thrown by resource calls are typed as `ApiError`:

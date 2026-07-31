@@ -27,8 +27,9 @@ this single file to an AI coding agent as the spec for your integration.
 npm install @ambosstech/payments   # or: pnpm add @ambosstech/payments
 ```
 
-The package is ESM-only. `@ambosstech/core` comes along as a transitive
-dependency — do not install it directly.
+The package ships both ESM and CommonJS builds (`import` and `require()` both
+work). `@ambosstech/core` comes along as a transitive dependency — do not
+install it directly.
 
 ## Step 1 — Create the client
 
