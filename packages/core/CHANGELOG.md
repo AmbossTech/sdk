@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/AmbossTech/sdk/compare/core-v0.1.1...core-v0.2.0) (2026-07-31)
+
+
+### Features
+
+* add CJS build support to core and payments packages [AMB-2845] ([#27](https://github.com/AmbossTech/sdk/issues/27)) ([6b7629f](https://github.com/AmbossTech/sdk/commit/6b7629f288c313a93e52c821d0b84e2dde4392fc))
+
+
+### Bug Fixes
+
+* clear error when teamId is unresolvable with a service API key ([#23](https://github.com/AmbossTech/sdk/issues/23)) ([ebb4a0a](https://github.com/AmbossTech/sdk/commit/ebb4a0a6f51e438ca888517b1eba70e8caca3656))
+
 ## [0.1.1](https://github.com/AmbossTech/sdk/compare/core-v0.1.0...core-v0.1.1) (2026-07-07)
 
 
