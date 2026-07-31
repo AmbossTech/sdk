@@ -27,7 +27,7 @@ importers:
         specifier: ^16.10.0
         version: 16.14.0
       graphql-request:
-        specifier: ^7.1.2
+        specifier: ^7.4.0
         version: 7.4.0(graphql@16.14.0)
     devDependencies:
       '@types/node':
@@ -52,7 +52,7 @@ importers:
         specifier: ^16.10.0
         version: 16.14.0
       graphql-request:
-        specifier: ^7.1.2
+        specifier: ^7.4.0
         version: 7.4.0(graphql@16.14.0)
       nostr-tools:
         specifier: ^2.11.0

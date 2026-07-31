@@ -13,6 +13,8 @@
     "build": "pnpm -r --filter \"./packages/*\" run build",
     "typecheck": "pnpm --filter @ambosstech/core run build && pnpm -r --filter \"./packages/*\" run typecheck",
     "test": "pnpm --filter @ambosstech/core run build && pnpm -r --filter \"./packages/*\" run test",
+    "test:examples": "pnpm --filter @ambosstech/payments run test:examples",
+    "typecheck:examples": "pnpm --filter @ambosstech/payments run typecheck:examples",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "pnpm -r --filter \"./packages/*\" run clean"

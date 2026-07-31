@@ -11,30 +11,38 @@
   "homepage": "https://github.com/ambosstech/ambosstech-sdk/tree/main/packages/core",
   "bugs": "https://github.com/ambosstech/ambosstech-sdk/issues",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist-cjs/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist-cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist-cjs/index.d.ts",
+        "default": "./dist-cjs/index.js"
+      }
     },
     "./schema": "./schema/rails.graphql"
   },
   "files": [
     "dist",
+    "dist-cjs",
     "src",
     "schema"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.build.cjs.json && cp dist-cjs.package.json dist-cjs/package.json",
+    "clean": "rm -rf dist dist-cjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "refresh-schema": "tsx scripts/refresh-schema.ts"
   },
   "dependencies": {
     "graphql": "^16.10.0",
-    "graphql-request": "^7.1.2"
+    "graphql-request": "^7.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

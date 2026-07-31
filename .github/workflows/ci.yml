@@ -35,5 +35,9 @@ jobs:
 
       - run: pnpm run build
 
+      - run: pnpm run test:examples
+
+      - run: pnpm run typecheck:examples
+
       - run: pnpm run format:check
         if: matrix.node-version == '24.x'

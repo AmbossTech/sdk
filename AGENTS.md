@@ -112,11 +112,20 @@ the schema.
 
 Runnable scripts in `packages/payments/examples/` (`receive.ts`, `send.ts`) run
 against the live API with credentials from `examples/.env` (gitignored; copy
-`examples/.env.example`).
+`examples/.env.example`). `verify-webhook.mjs`/`verify-webhook.cjs` need no
+credentials (webhook verification is offline) and run in CI as
+`pnpm run test:examples`, exercising the built `dist`/`dist-cjs` output of
+both packages — the regression check for the dual build. `send.cts`/
+`receive.cts` are CJS counterparts of `send.ts`/`receive.ts` that are only
+type-checked in CI (`pnpm run typecheck:examples`), never executed, since
+running them would hit the live API the same as their `.ts` counterparts.
 
 ## Key constraints
 
-- ESM only (`"type": "module"`). All relative imports must use `.js` extensions.
+- Source is ESM (`"type": "module"`), all relative imports must use `.js`
+  extensions; each package builds a `require()`-compatible CommonJS output
+  (`dist-cjs/`) alongside the ESM one (`dist/`) so both `import` and
+  `require()` consumers work.
 - Node ≥ 18.18 required (native `fetch`, `crypto`).
 - `@ambosstech/core` must be built before `@ambosstech/payments` — root
   `build`/`test`/`typecheck` scripts handle the order.
