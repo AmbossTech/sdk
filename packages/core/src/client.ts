@@ -5,8 +5,7 @@ import type { ClientConfig, FetchLike, ResolvedClientConfig } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://rails.amboss.tech/graphql';
 const DEFAULT_TIMEOUT_MS = 30_000;
-// x-release-please-version
-const SDK_VERSION = '0.2.0';
+const SDK_VERSION = '0.2.0'; // x-release-please-version
 
 export class AmbossClient {
   protected readonly config: ResolvedClientConfig;
