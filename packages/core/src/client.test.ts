@@ -67,6 +67,24 @@ describe('AmbossClient', () => {
     assert.equal(new Probe({ serviceApiKey: 'amb_live_test' }).check(), 'amb_live_test');
   });
 
+  it('sends apollographql client identification headers', async () => {
+    let receivedHeaders: Headers | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      receivedHeaders = new Headers(init?.headers);
+      return new Response(JSON.stringify({ data: { ok: true } }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    class Probe extends AmbossClient {
+      run(): Promise<unknown> {
+        return this.gqlRequest('{ ok }', undefined, 'Probe');
+      }
+    }
+    await new Probe({ apiKey: 'sk_test', fetch: fetchImpl }).run();
+    assert.equal(receivedHeaders?.get('apollographql-client-name'), 'amboss-sdk');
+    assert.ok(receivedHeaders?.get('apollographql-client-version'));
+  });
+
   it('applies timeoutMs as an abort signal on requests', async () => {
     let receivedSignal: AbortSignal | undefined;
     const fetchImpl: typeof fetch = async (_input, init) => {

@@ -3,7 +3,9 @@
   "release-type": "node",
   "always-update": true,
   "packages": {
-    "packages/core": {},
+    "packages/core": {
+      "extra-files": ["src/client.ts"]
+    },
     "packages/payments": {}
   }
 }
