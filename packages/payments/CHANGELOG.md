@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/AmbossTech/sdk/compare/payments-v0.2.0...payments-v0.3.0) (2026-08-05)
+
+
+### Features
+
+* add simple types to SDK [AMB-2886] ([#31](https://github.com/AmbossTech/sdk/issues/31)) ([e730beb](https://github.com/AmbossTech/sdk/commit/e730beb2dc2f41aa80ad4a9cd2a0e62c8ac546f3))
+
+
+### Bug Fixes
+
+* correct repository.url so npm provenance publish succeeds ([#28](https://github.com/AmbossTech/sdk/issues/28)) ([46cff13](https://github.com/AmbossTech/sdk/commit/46cff133d7795066ad10595d674069953fdcdfff))
+
 ## [0.2.0](https://github.com/AmbossTech/sdk/compare/payments-v0.1.1...payments-v0.2.0) (2026-07-31)
 
 
