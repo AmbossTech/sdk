@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/AmbossTech/sdk/compare/core-v0.2.0...core-v0.3.0) (2026-08-05)
+
+
+### Features
+
+* send apollographql client identification headers ([#30](https://github.com/AmbossTech/sdk/issues/30)) ([ae9930d](https://github.com/AmbossTech/sdk/commit/ae9930dcff5502db569dac85f831e0c40ec7f5ab))
+
+
+### Bug Fixes
+
+* correct repository.url so npm provenance publish succeeds ([#28](https://github.com/AmbossTech/sdk/issues/28)) ([46cff13](https://github.com/AmbossTech/sdk/commit/46cff133d7795066ad10595d674069953fdcdfff))
+* put x-release-please-version marker on the same line as SDK_VERSION ([#32](https://github.com/AmbossTech/sdk/issues/32)) ([83f3ba1](https://github.com/AmbossTech/sdk/commit/83f3ba1e90f0c59d63b9d70cc1089eca8a67e8f7))
+
 ## [0.2.0](https://github.com/AmbossTech/sdk/compare/core-v0.1.1...core-v0.2.0) (2026-07-31)
 
 
