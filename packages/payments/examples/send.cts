@@ -22,7 +22,6 @@ async function send(): Promise<void> {
   const params: PaymentsModule.SendParams = {
     walletId: 'wallet_1',
     password: 'team-password',
-    feeLimitSats: '10',
     destination,
     onUpdate: (progress: PaymentsModule.SendProgress) => console.log('status:', progress.status),
   };

@@ -5,7 +5,6 @@ export type PaymentLifecycleStatus = 'UNKNOWN' | 'INITIATED' | 'IN_FLIGHT' | 'SU
 export interface SendLndPaymentBody {
   payment_request: string;
   amt?: string;
-  fee_limit_sat: string;
   timeout_seconds: number;
 }
 
@@ -33,7 +32,6 @@ export interface LndPaymentUpdate {
 export interface SendAssetPaymentBody {
   payment_request: {
     payment_request: string;
-    fee_limit_sat: string;
     timeout_seconds: number;
   };
   /**
