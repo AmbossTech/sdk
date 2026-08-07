@@ -105,7 +105,6 @@ describe('Transactions.send', () => {
     const result = await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      feeLimitSats: '10',
       destination: { bolt11: 'lnbc1xyz' },
       onUpdate: (p) => statuses.push(p.status),
     });
@@ -124,7 +123,6 @@ describe('Transactions.send', () => {
 
     const result = await transactions.send({
       walletId: 'w1',
-      feeLimitSats: '10',
       destination: { bolt11: 'lnbc1xyz' },
     });
 
@@ -142,7 +140,6 @@ describe('Transactions.send', () => {
       walletId: 'w1',
       password: PASSWORD,
       teamId: TEAM_ID, // overrides the value resolved from the wallet
-      feeLimitSats: '10',
       destination: { bolt11: 'lnbc1xyz' },
     });
 
@@ -158,7 +155,6 @@ describe('Transactions.send', () => {
       transactions.send({
         walletId: 'w1',
         password: 'wrong-password',
-        feeLimitSats: '10',
         destination: { bolt11: 'lnbc1xyz' },
       }),
       /admin macaroon/,

@@ -191,7 +191,6 @@ const { transaction, payment } = await payments.transactions.send({
   walletId,
   password, // team password — used only to decrypt the node macaroon locally
   teamId, // required with a serviceApiKey (Argon2 salt); omit and it's resolved from the user
-  feeLimitSats: '50',
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
   onUpdate: ({ status }) => console.log(status), // 'IN_FLIGHT' | ...
@@ -214,7 +213,6 @@ The backend settles asynchronously per the `amb_sandbox_behavior` metadata
 ```ts
 const { transaction, payment } = await payments.transactions.send({
   walletId, // a sandbox wallet — no password required
-  feeLimitSats: '50',
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // force success in sandbox
 });

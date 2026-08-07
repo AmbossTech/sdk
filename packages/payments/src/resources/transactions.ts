@@ -83,7 +83,7 @@ export class Transactions {
    * `expire`). No password is required.
    */
   async send(params: SendParams): Promise<SendResult> {
-    const { walletId, password, feeLimitSats, destination, onUpdate, signal } = params;
+    const { walletId, password, destination, onUpdate, signal } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
     // 1. Fetch the wallet's send context up-front: the environment type (to
@@ -161,7 +161,6 @@ export class Transactions {
           body: {
             payment_request: {
               payment_request: transaction.payment_request,
-              fee_limit_sat: feeLimitSats,
               timeout_seconds: timeoutSeconds,
             },
             ...(wallet.asset.taproot_asset_details?.group_key
@@ -176,7 +175,6 @@ export class Transactions {
           body: {
             payment_request: transaction.payment_request,
             ...(lndAmountSats(destination) ? { amt: lndAmountSats(destination) } : {}),
-            fee_limit_sat: feeLimitSats,
             timeout_seconds: timeoutSeconds,
           },
         });

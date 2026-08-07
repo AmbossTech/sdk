@@ -111,7 +111,6 @@ const { transaction, payment } = await payments.transactions.send({
   walletId,
   password: process.env.TEAM_PASSWORD, // live wallets only
   teamId, // required with a service API key
-  feeLimitSats: '50', // max routing fee you accept
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
   idempotencyKey: payoutId, // recommended — prevents double-sends on retry
@@ -136,7 +135,6 @@ with metadata and observe it via webhooks:
 ```ts
 await payments.transactions.send({
   walletId: sandboxWalletId,
-  feeLimitSats: '50',
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // 'complete' | 'fail' | 'expire' (default)
 });
@@ -283,8 +281,7 @@ Send-specific: `DecryptionError` (wrong team password) and `PaymentSendError`
       not double-fulfill.
 - [ ] `idempotency_key` / `idempotencyKey` set on receives and sends so your
       retries are safe.
-- [ ] Sends set a sane `feeLimitSats` and handle `DecryptionError` /
-      `PaymentSendError` distinctly.
+- [ ] Sends handle `DecryptionError` / `PaymentSendError` distinctly.
 - [ ] The full flow was exercised against a `SANDBOX` environment first
       (`amb_sandbox_behavior: 'complete' | 'fail' | 'expire'` covers all
       outcomes).

@@ -87,7 +87,6 @@ async function main(): Promise<void> {
   const params: SendParams = {
     walletId,
     ...(password ? { password } : {}),
-    feeLimitSats: process.env.FEE_LIMIT_SATS ?? '10',
     destination,
     ...(process.env.TEAM_ID ? { teamId: process.env.TEAM_ID } : {}),
     ...(process.env.IDEMPOTENCY_KEY ? { idempotencyKey: process.env.IDEMPOTENCY_KEY } : {}),
@@ -96,7 +95,7 @@ async function main(): Promise<void> {
   };
 
   console.log('\n--- sending ---');
-  console.log('destination:', JSON.stringify(destination), '| feeLimitSats:', params.feeLimitSats);
+  console.log('destination:', JSON.stringify(destination));
 
   await new Promise((r) => setTimeout(r, 5_000));
 

@@ -30,8 +30,6 @@ export interface SendParams {
    * value.
    */
   teamId?: string;
-  /** Maximum routing fee, in satoshis. */
-  feeLimitSats: string;
   destination: SendDestination;
   /** Idempotency key forwarded to `create_send`. */
   idempotencyKey?: string;
