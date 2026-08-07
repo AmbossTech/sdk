@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/AmbossTech/sdk/compare/payments-v0.3.0...payments-v1.0.0) (2026-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove fee limit from Transactions.send ([#33](https://github.com/AmbossTech/sdk/issues/33))
+
+### Bug Fixes
+
+* remove fee limit from Transactions.send ([#33](https://github.com/AmbossTech/sdk/issues/33)) ([929c283](https://github.com/AmbossTech/sdk/commit/929c283ec555bca20d5031ece1290a0819038a82))
+
 ## [0.3.0](https://github.com/AmbossTech/sdk/compare/payments-v0.2.0...payments-v0.3.0) (2026-08-05)
 
 
