@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/AmbossTech/sdk/compare/payments-v1.0.0...payments-v1.0.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* prioritize litd socket in selectSendNode for all payment types ([#35](https://github.com/AmbossTech/sdk/issues/35)) ([6a3275d](https://github.com/AmbossTech/sdk/commit/6a3275dce383468f146d7755b51755ff77204e9f))
+
 ## [1.0.0](https://github.com/AmbossTech/sdk/compare/payments-v0.3.0...payments-v1.0.0) (2026-08-07)
 
 
