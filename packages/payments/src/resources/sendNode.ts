@@ -14,16 +14,13 @@ export interface SelectedSendNode {
   tlsCert?: string | null;
 }
 
-/**
- * Picks the first node exposing a usable REST endpoint for the send: litd for
- * Taproot Asset wallets, LND otherwise. Ported from amboss-rails `pickSendNode`.
- */
+/** litd proxies both tapd and LND endpoints, so it's tried first; a bare `lnd` socket only covers base sends. */
 export function selectSendNode(
   nodes: readonly SendNodeCandidate[],
   isAsset: boolean,
 ): SelectedSendNode | null {
   for (const node of nodes) {
-    const restHost = isAsset ? node.sockets.litd?.rest : node.sockets.lnd?.rest;
+    const restHost = node.sockets.litd?.rest ?? (isAsset ? undefined : node.sockets.lnd?.rest);
     if (restHost) {
       return { restHost, encryptedMacaroon: node.encrypted_macaroon, tlsCert: node.tls_cert };
     }
