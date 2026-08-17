@@ -15,13 +15,18 @@ const MACAROON_HEX = '0201036c6e6402240a';
 const SYMMETRIC_KEY = bytesToHex(new Uint8Array(64).map((_, i) => (i * 5 + 1) & 0xff));
 
 let server: Server | undefined;
+let lastBody: unknown;
 afterEach(async () => {
   if (server) await new Promise<void>((resolve) => server!.close(() => resolve()));
   server = undefined;
+  lastBody = undefined;
 });
 
 async function startNode(lines: object[]): Promise<string> {
-  server = createServer((_req, res: ServerResponse) => {
+  server = createServer(async (req, res: ServerResponse) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    lastBody = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
     res.writeHead(200, { 'content-type': 'application/json' });
     for (const line of lines) res.write(`${JSON.stringify(line)}\n`);
     res.end();
@@ -114,6 +119,7 @@ describe('Transactions.send', () => {
     assert.equal(result.payment.paymentHash, 'ph');
     assert.equal(result.transaction.payment_request, 'lnbc1xyz');
     assert.deepEqual(statuses, ['IN_FLIGHT', 'SUCCEEDED']);
+    assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
 
   it('creates a sandbox send without a password and returns payment: null', async () => {

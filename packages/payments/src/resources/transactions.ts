@@ -19,6 +19,13 @@ import type { SendDestination, SendParams, SendResult } from './transactions.typ
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
 /**
+ * Fee limit sent to LND/litd for every send. Fixed at 2^32 sats — far beyond
+ * any real routing fee — so the node never rejects a payment for lacking a
+ * fee limit, without exposing fee-limit configuration to callers.
+ */
+const FEE_LIMIT_SATS = '4294967296';
+
+/**
  * Taproot asset group keys come from GraphQL as hex (a 33-byte compressed
  * secp256k1 pubkey → 66 hex chars). litd's REST gateway expects the `group_key`
  * bytes field base64-encoded; passing the hex string makes the gateway
@@ -161,6 +168,7 @@ export class Transactions {
           body: {
             payment_request: {
               payment_request: transaction.payment_request,
+              fee_limit_sat: FEE_LIMIT_SATS,
               timeout_seconds: timeoutSeconds,
             },
             ...(wallet.asset.taproot_asset_details?.group_key
@@ -175,6 +183,7 @@ export class Transactions {
           body: {
             payment_request: transaction.payment_request,
             ...(lndAmountSats(destination) ? { amt: lndAmountSats(destination) } : {}),
+            fee_limit_sat: FEE_LIMIT_SATS,
             timeout_seconds: timeoutSeconds,
           },
         });
