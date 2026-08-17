@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/AmbossTech/sdk/compare/payments-v1.0.1...payments-v1.0.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* send a fixed fee limit on Transactions.send [AMB-2979] ([#37](https://github.com/AmbossTech/sdk/issues/37)) ([98bf969](https://github.com/AmbossTech/sdk/commit/98bf969e543e5692f1932b8e7018959cfa17d336))
+
 ## [1.0.1](https://github.com/AmbossTech/sdk/compare/payments-v1.0.0...payments-v1.0.1) (2026-08-10)
 
 
