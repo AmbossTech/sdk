@@ -54,7 +54,7 @@ describe('sendLndPayment', () => {
       restHost: host,
       // base64 macaroon → should be sent as hex
       macaroon: Buffer.from([0x02, 0x01, 0x03]).toString('base64'),
-      body: { payment_request: 'lnbc1', timeout_seconds: 60 },
+      body: { payment_request: 'lnbc1', fee_limit_sat: '10', timeout_seconds: 60 },
       onUpdate: (s) => seen.push(s),
     });
 
@@ -78,7 +78,7 @@ describe('sendLndPayment', () => {
       sendLndPayment({
         restHost: host,
         macaroon: '020103',
-        body: { payment_request: 'lnbc1', timeout_seconds: 60 },
+        body: { payment_request: 'lnbc1', fee_limit_sat: '10', timeout_seconds: 60 },
       }),
       (err: unknown) => err instanceof PaymentSendError && /no route/.test((err as Error).message),
     );
