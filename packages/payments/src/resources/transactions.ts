@@ -146,6 +146,29 @@ export class Transactions {
       input: buildCreateSendInput(params),
     });
     const transaction = createRes.payment.transaction.create_send;
+
+    // Already-completed: `create_send` found an existing COMPLETED transaction
+    // with the same payment hash (a genuine duplicate, or an idempotency-key
+    // replay) and returned it instead of creating a new one. Paying it again
+    // on the node would fail (or double-pay), so short-circuit and report it
+    // as the successful send it already is.
+    if (transaction.status === 'COMPLETED') {
+      return {
+        transaction,
+        payment: {
+          status: 'SUCCEEDED',
+          paymentHash: transaction.payment_hash ?? undefined,
+          // `fee` is already sats today (backend writes it from LND's
+          // `safe_fee`) — same unit as `feeSat`, so no numeric conversion.
+          feeSat: transaction.fee ?? undefined,
+          // PaymentsTransaction has no preimage field, so it can't be
+          // recovered for an already-settled transaction — only a payment
+          // actually executed on the node below returns one.
+          paymentPreimage: undefined,
+        },
+      };
+    }
+
     if (!transaction.payment_request) {
       throw new PaymentSendError('Backend did not return a payment request.');
     }
