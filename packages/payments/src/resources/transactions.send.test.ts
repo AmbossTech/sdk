@@ -38,7 +38,11 @@ async function startNode(lines: object[]): Promise<string> {
 }
 
 /** Fake GraphQLClient that answers the operations send() issues. */
-function fakeClient(restHost: string, environmentType: 'LIVE' | 'SANDBOX' = 'LIVE'): GraphQLClient {
+function fakeClient(
+  restHost: string,
+  environmentType: 'LIVE' | 'SANDBOX' = 'LIVE',
+  createSendTransaction: object = { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' },
+): GraphQLClient {
   const masterKey = deriveMasterKey(PASSWORD, TEAM_ID);
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
   const encrypted_macaroon = nip44Encrypt(MACAROON_HEX, SYMMETRIC_KEY);
@@ -87,7 +91,7 @@ function fakeClient(restHost: string, environmentType: 'LIVE' | 'SANDBOX' = 'LIV
       return {
         payment: {
           transaction: {
-            create_send: { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' },
+            create_send: createSendTransaction,
           },
         },
       };
@@ -165,5 +169,50 @@ describe('Transactions.send', () => {
       }),
       /admin macaroon/,
     );
+  });
+
+  it('short-circuits an already-COMPLETED transaction without paying on the node', async () => {
+    // Point at an unroutable host so any accidental node call fails the test.
+    const transactions = new Transactions(
+      fakeClient('http://127.0.0.1:1', 'LIVE', {
+        id: 'tx1',
+        status: 'COMPLETED',
+        payment_hash: 'ph-existing',
+        fee: '3',
+        payment_request: 'lnbc1xyz',
+      }),
+    );
+
+    const result = await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(result.payment.status, 'SUCCEEDED');
+    assert.equal(result.payment.paymentHash, 'ph-existing');
+    assert.equal(result.payment.feeSat, '3');
+    assert.equal(result.payment.paymentPreimage, undefined);
+    assert.equal(result.transaction.status, 'COMPLETED');
+  });
+
+  it('still executes the node payment for a non-completed transaction', async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const transactions = new Transactions(
+      fakeClient(host, 'LIVE', { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' }),
+    );
+
+    const result = await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(result.payment.status, 'SUCCEEDED');
+    assert.ok(lastBody, 'node should have been called');
   });
 });

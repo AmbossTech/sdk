@@ -127,6 +127,7 @@ Notes:
 - Base-asset wallets pay over LND; Taproot Asset wallets over litd — the SDK
   picks the endpoint from the wallet's asset automatically.
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.
+- If the invoice was already paid (duplicate, or a replayed `idempotencyKey`), the SDK detects the returned `COMPLETED` transaction and resolves with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case.
 
 **Sandbox wallets** need no password and no node — the backend settles the
 transaction asynchronously and `payment` resolves `null`. Control the outcome
