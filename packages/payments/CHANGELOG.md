@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/AmbossTech/sdk/compare/payments-v1.0.2...payments-v1.0.3) (2026-08-18)
+
+
+### Bug Fixes
+
+* return already-completed send without re-paying on the node [AMB-2985] ([#39](https://github.com/AmbossTech/sdk/issues/39)) ([55e637e](https://github.com/AmbossTech/sdk/commit/55e637eccd9a64d285d9651acb00a9e345926647))
+
 ## [1.0.2](https://github.com/AmbossTech/sdk/compare/payments-v1.0.1...payments-v1.0.2) (2026-08-17)
 
 
