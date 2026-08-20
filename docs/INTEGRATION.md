@@ -111,7 +111,7 @@ node and resolves with the terminal result.
 const { transaction, payment } = await payments.transactions.send({
   walletId,
   password: process.env.TEAM_PASSWORD, // live wallets only
-  teamId, // required with a service API key
+  teamId, // optional — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
   idempotencyKey: payoutId, // recommended — prevents double-sends on retry

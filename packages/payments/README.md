@@ -191,7 +191,7 @@ with the terminal result.
 const { transaction, payment } = await payments.transactions.send({
   walletId,
   password, // team password — used only to decrypt the node macaroon locally
-  teamId, // required with a serviceApiKey (Argon2 salt); omit and it's resolved from the user
+  teamId, // optional (Argon2 salt) — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
   onUpdate: ({ status }) => console.log(status), // 'IN_FLIGHT' | ...
