@@ -44,6 +44,12 @@ interface Credentials {
    * caller passed — possibly nothing.
    */
   teamId?: string;
+  /**
+   * Whether {@link teamId} came from an explicit caller override rather than
+   * the wallet's own team. A `send()` that omits `teamId` asks for the wallet's
+   * team, which an overridden slot cannot answer for — see {@link isReusable}.
+   */
+  overrodeTeamId: boolean;
 }
 
 /**
@@ -78,11 +84,17 @@ function passwordFingerprint(password: string | undefined): string {
  * An explicit `teamId` equal to the one the slot resolved *is* the same
  * credentials — the same salt derives the same key — so passing the wallet's own
  * team id still hits the cache.
+ *
+ * Omitting `teamId` alongside a password is *not* a wildcard: it asks for the
+ * wallet's own team, so it may only reuse a slot that resolved the salt that
+ * way. Reusing an overridden slot would silently derive against a team the
+ * caller never named.
  */
 function isReusable(slot: Credentials, params: PrepareSendParams): boolean {
   if (params.password === undefined) return true;
   if (slot.fingerprint !== passwordFingerprint(params.password)) return false;
-  return params.teamId === undefined || params.teamId === slot.teamId;
+  if (params.teamId === undefined) return !slot.overrodeTeamId;
+  return params.teamId === slot.teamId;
 }
 
 /**
@@ -129,8 +141,13 @@ export class Transactions {
    * ponytail: no TTL — call `forgetSend()` to refresh.
    */
   readonly #ready = new Map<string, ReadySlot>();
-  /** Derivations still running, keyed by wallet id, so concurrent callers share one Argon2 pass. */
-  readonly #pending = new Map<string, PendingSlot>();
+  /**
+   * Derivations still running, keyed by wallet id, so concurrent callers share
+   * one Argon2 pass. A wallet holds *all* its in-flight attempts rather than
+   * only the newest: a second caller's wrong password must not displace a good
+   * derivation already running, whose result would then be thrown away.
+   */
+  readonly #pending = new Map<string, readonly PendingSlot[]>();
 
   constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
@@ -289,41 +306,60 @@ export class Transactions {
     const ready = this.#ready.get(walletId);
     if (ready && isReusable(ready, params)) return Promise.resolve(ready.send);
 
-    const inFlight = this.#pending.get(walletId);
-    if (inFlight && isReusable(inFlight, params)) return inFlight.promise;
+    const inFlight = this.#pending.get(walletId) ?? [];
+    const reusable = inFlight.find((slot) => isReusable(slot, params));
+    if (reusable) return reusable.promise;
 
     const promise = this.#resolveSendContext(params);
     const slot: PendingSlot = {
       promise,
       fingerprint: passwordFingerprint(params.password),
       teamId: params.teamId,
+      overrodeTeamId: params.teamId !== undefined,
     };
-    this.#pending.set(walletId, slot);
+    this.#pending.set(walletId, [...inFlight, slot]);
 
     // Attaching handlers here also marks `promise` as handled, so the
     // fire-and-forget constructor pre-warm can never raise `unhandledRejection`.
-    // Both branches no-op unless this slot is still the current one, so a
+    // Both branches no-op unless this slot is still registered, so a
     // `forgetSend()` mid-derivation is not undone by the result landing late.
     promise.then(
       (send) => {
-        if (this.#pending.get(walletId) !== slot) return;
-        this.#pending.delete(walletId);
+        if (!this.#dropPending(walletId, slot)) return;
         this.#ready.set(walletId, {
           send,
           fingerprint: slot.fingerprint,
           // The resolved salt, so a later `send()` naming it explicitly still
           // reuses this slot. Sandbox derives no key and has none.
           teamId: send.kind === 'node' ? send.teamId : undefined,
+          // Sandbox derives no key, so no override shaped this slot.
+          overrodeTeamId: send.kind === 'node' && slot.overrodeTeamId,
         });
       },
       () => {
-        // Only this attempt is dropped — a prepared wallet in #ready survives.
-        // The rejection still reaches whoever awaits `promise`.
-        if (this.#pending.get(walletId) === slot) this.#pending.delete(walletId);
+        // Only this attempt is dropped — a prepared wallet in #ready and any
+        // sibling derivation both survive. The rejection still reaches whoever
+        // awaits `promise`.
+        this.#dropPending(walletId, slot);
       },
     );
 
     return promise;
+  }
+
+  /**
+   * Removes a settled derivation from `#pending`. Returns whether it was still
+   * registered — `false` means `forgetSend()` dropped it mid-flight, so its
+   * result must not be cached.
+   */
+  #dropPending(walletId: string, slot: PendingSlot): boolean {
+    const inFlight = this.#pending.get(walletId);
+    if (!inFlight?.includes(slot)) return false;
+
+    const remaining = inFlight.filter((candidate) => candidate !== slot);
+    if (remaining.length > 0) this.#pending.set(walletId, remaining);
+    else this.#pending.delete(walletId);
+    return true;
   }
 
   async #resolveSendContext(params: PrepareSendParams): Promise<PreparedSend> {

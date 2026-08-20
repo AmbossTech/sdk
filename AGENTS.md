@@ -95,7 +95,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
   `Transactions.#ready`, so it runs once, not per send.
 - `prepareSend(params)` runs that step ahead of time; `isSendReady(walletId)`
   reports whether the macaroon is resident (`false` while still deriving —
-  it checks `#ready`, not the in-flight `#pending` slot); `forgetSend(walletId)`
+  it checks `#ready`, not the in-flight `#pending` slots); `forgetSend(walletId)`
   evicts. `PaymentsConfig.send` pre-warms an array of wallets from the
   constructor, sequentially and fire-and-forget (errors swallowed there;
   `send()` re-derives and surfaces them).
@@ -103,7 +103,12 @@ Resource getters are lazy and call `requireServiceApiKey`:
   `masterKey` / `masterPasswordHash`; a slot records a sha256 fingerprint of the
   password plus the `teamId` the derivation actually used, so a `send` with a
   different password re-derives instead of reusing another password's macaroon
-  while one naming the wallet's own team explicitly still hits the cache; a
+  while one naming the wallet's own team explicitly still hits the cache; a slot
+  also records *whether* that `teamId` was an explicit override, because a `send`
+  omitting `teamId` asks for the wallet's own team and must not be answered from
+  an overridden slot; `#pending` holds **every** in-flight derivation for a
+  wallet, not just the newest, so a second caller's wrong password neither
+  displaces a good derivation already running nor discards its result; and a
   rejected derivation drops only its own `#pending` slot, so a wallet already
   prepared in `#ready` survives someone else's bad password.
 - Argon2id is **synchronous** and blocks the event loop for seconds — prepare is

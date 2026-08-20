@@ -37,11 +37,18 @@ async function startNode(lines: object[]): Promise<string> {
   return `http://127.0.0.1:${addr.port}`;
 }
 
-/** Fake GraphQLClient that answers the operations send() issues. */
+/**
+ * Fake GraphQLClient that answers the operations send() issues.
+ *
+ * The node credentials are always encrypted for `TEAM_ID`. `walletTeamId` is
+ * the team the *wallet* reports; pointing it elsewhere models a wallet whose
+ * credentials only an explicit `teamId` override can decrypt.
+ */
 function fakeClient(
   restHost: string,
   environmentType: 'LIVE' | 'SANDBOX' = 'LIVE',
   createSendTransaction: object = { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' },
+  walletTeamId: string = TEAM_ID,
 ): GraphQLClient {
   const masterKey = deriveMasterKey(PASSWORD, TEAM_ID);
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
@@ -54,7 +61,7 @@ function fakeClient(
           wallet: {
             find_one: {
               id: 'w1',
-              team_id: TEAM_ID,
+              team_id: walletTeamId,
               environment: { id: 'e1', type: environmentType },
             },
           },
@@ -363,5 +370,50 @@ describe('Transactions.prepareSend', () => {
     );
     assert.equal(countOf(ops, 'GetWalletNodePermissions'), 0);
     assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+  });
+
+  it('keeps a concurrent successful preparation when another send has bad credentials', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    // Both derivations are in flight at once: the good one is started first,
+    // then the bad one, which must not displace it.
+    const prepared = transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    const failed = transactions.send({
+      walletId: 'w1',
+      password: 'a-different-password',
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    await prepared;
+    await assert.rejects(failed, /admin macaroon/);
+
+    assert.equal(
+      transactions.isSendReady('w1'),
+      true,
+      'a resolved prepareSend must survive a concurrent bad-credential send',
+    );
+  });
+
+  it('re-derives when a send omits the teamId that prepareSend overrode', async () => {
+    const WALLET_TEAM_ID = '22222222-2222-2222-2222-222222222222';
+    const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
+    const transactions = new Transactions(fakeClient(host, 'LIVE', undefined, WALLET_TEAM_ID));
+
+    // Only the override decrypts, so this proves the slot is override-derived.
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD, teamId: TEAM_ID });
+    assert.equal(transactions.isSendReady('w1'), true);
+
+    // Omitting teamId is documented to resolve it from the wallet. That salt
+    // (WALLET_TEAM_ID) cannot decrypt, so this must fail rather than silently
+    // reuse the macaroon the override produced.
+    await assert.rejects(
+      transactions.send({
+        walletId: 'w1',
+        password: PASSWORD,
+        destination: { bolt11: 'lnbc1xyz' },
+      }),
+      /admin macaroon/,
+    );
   });
 });
