@@ -13,8 +13,10 @@ export type PaymentsConfig = ClientConfig & {
    * its admin macaroon decrypted in the background, so the first `send()` for
    * that wallet skips two API round-trips and two Argon2id passes.
    *
-   * Failures are ignored here — pre-warming is an optimization, and `send()`
-   * redoes the work and surfaces the real error. Requires `serviceApiKey`.
+   * Per-wallet failures are ignored here — pre-warming is an optimization, and
+   * `send()` redoes the work and surfaces the real error. Requires
+   * `serviceApiKey`: passing this without one throws `ConfigError` from the
+   * constructor rather than pre-warming nothing in silence.
    */
   send?: readonly PrepareSendParams[];
 };
@@ -29,7 +31,11 @@ export class Payments extends AmbossClient {
   constructor(config: PaymentsConfig = {}) {
     super(config);
     this.webhooks = new Webhooks(config.webhookSecret);
-    if (config.send?.length) this.#prewarmSend(config.send);
+    // Resolving the resource here rather than inside the loop keeps a missing
+    // serviceApiKey a constructor-time ConfigError. Reaching it through the
+    // getter mid-loop would land that throw in the per-wallet catch below and
+    // pre-warm nothing, silently and forever.
+    if (config.send?.length) void this.#prewarmSend(this.transactions, config.send);
   }
 
   /**
@@ -41,17 +47,18 @@ export class Payments extends AmbossClient {
    * `await transactions.prepareSend(...)` instead of using this option when you
    * need to observe failures.
    */
-  #prewarmSend(wallets: readonly PrepareSendParams[]): void {
-    void (async () => {
-      for (const wallet of wallets) {
-        try {
-          await this.transactions.prepareSend(wallet);
-        } catch {
-          // Deliberately swallowed: `send()` re-runs the derivation and throws
-          // the real DecryptionError / ApiError where the caller can catch it.
-        }
+  async #prewarmSend(
+    transactions: Transactions,
+    wallets: readonly PrepareSendParams[],
+  ): Promise<void> {
+    for (const wallet of wallets) {
+      try {
+        await transactions.prepareSend(wallet);
+      } catch {
+        // Deliberately swallowed: `send()` re-runs the derivation and throws
+        // the real DecryptionError / ApiError where the caller can catch it.
       }
-    })();
+    }
   }
 
   get environments(): Environments {

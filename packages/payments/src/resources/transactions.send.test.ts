@@ -124,6 +124,37 @@ function withCallLog(inner: GraphQLClient): { client: GraphQLClient; ops: string
 const countOf = (ops: readonly string[], operation: string): number =>
   ops.filter((document) => document.includes(operation)).length;
 
+/**
+ * Prepares `w1`, then fails a send on it with the wrong password — the shared
+ * arrangement for the cases asserting that a bad password disturbs nothing.
+ * `ops` is cleared right before the failing send, so what it holds on return is
+ * that send's own traffic.
+ */
+async function prepareThenFailWrongPassword(): Promise<{
+  transactions: Transactions;
+  ops: string[];
+}> {
+  const host = await startNode([
+    { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+  ]);
+  const { client, ops } = withCallLog(fakeClient(host));
+  const transactions = new Transactions(client);
+
+  await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+  ops.length = 0;
+
+  await assert.rejects(
+    transactions.send({
+      walletId: 'w1',
+      password: 'a-different-password',
+      destination: { bolt11: 'lnbc1xyz' },
+    }),
+    /admin macaroon/,
+  );
+
+  return { transactions, ops };
+}
+
 describe('Transactions.send', () => {
   it('decrypts the macaroon, creates the send, and pays via the LND node', async () => {
     const host = await startNode([
@@ -280,21 +311,8 @@ describe('Transactions.prepareSend', () => {
   });
 
   it('does not reuse a prepared macaroon for a send() with a different password', async () => {
-    const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
-    const { client, ops } = withCallLog(fakeClient(host));
-    const transactions = new Transactions(client);
+    const { ops } = await prepareThenFailWrongPassword();
 
-    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
-    ops.length = 0;
-
-    await assert.rejects(
-      transactions.send({
-        walletId: 'w1',
-        password: 'a-different-password',
-        destination: { bolt11: 'lnbc1xyz' },
-      }),
-      /admin macaroon/,
-    );
     assert.equal(
       countOf(ops, 'GetWalletNodePermissions'),
       1,
@@ -311,22 +329,8 @@ describe('Transactions.prepareSend', () => {
   });
 
   it('keeps an already-prepared wallet after a send() with the wrong password fails', async () => {
-    const host = await startNode([
-      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
-    ]);
-    const { client, ops } = withCallLog(fakeClient(host));
-    const transactions = new Transactions(client);
+    const { transactions, ops } = await prepareThenFailWrongPassword();
 
-    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
-
-    await assert.rejects(
-      transactions.send({
-        walletId: 'w1',
-        password: 'a-different-password',
-        destination: { bolt11: 'lnbc1xyz' },
-      }),
-      /admin macaroon/,
-    );
     assert.equal(
       transactions.isSendReady('w1'),
       true,

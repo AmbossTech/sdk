@@ -42,6 +42,12 @@ interface Credentials {
    * (the wallet's own team unless the caller overrode it); a slot still
    * deriving has not learned the wallet's team yet, so it holds whatever the
    * caller passed — possibly nothing.
+   *
+   * ponytail: that asymmetry costs one missed dedupe. A `send` naming the
+   * wallet's own team cannot match a still-deriving slot prepared without a
+   * `teamId`, so it derives a second time; once the first slot is ready the
+   * two do match. Closing it means updating the slot mid-derivation, which is
+   * not worth the mutable state for a same-wallet concurrent-call window.
    */
   teamId?: string;
   /**

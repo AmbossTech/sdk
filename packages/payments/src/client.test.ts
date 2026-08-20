@@ -43,6 +43,15 @@ describe('Payments serviceApiKey gating', () => {
     );
   });
 
+  it('throws ConfigError when send pre-warming is configured without a serviceApiKey', () => {
+    // Otherwise the missing key is swallowed by the per-wallet catch and the
+    // wallets are never pre-warmed, with nothing to explain why.
+    assert.throws(
+      () => new Payments({ send: [{ walletId: 'w1', password: 'hunter2-pw' }] }),
+      (err: unknown) => err instanceof ConfigError,
+    );
+  });
+
   it('does not throw when serviceApiKey is provided', () => {
     const payments = new Payments({ serviceApiKey: 'amb_live_test', webhookSecret: 'whsec_test' });
     assert.ok(payments.environments);

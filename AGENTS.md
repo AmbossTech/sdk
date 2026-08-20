@@ -99,18 +99,21 @@ Resource getters are lazy and call `requireServiceApiKey`:
   evicts. `PaymentsConfig.send` pre-warms an array of wallets from the
   constructor, sequentially and fire-and-forget (errors swallowed there;
   `send()` re-derives and surfaces them).
-- Cache invariants worth preserving: only the **macaroon** is retained, never
-  `masterKey` / `masterPasswordHash`; a slot records a sha256 fingerprint of the
-  password plus the `teamId` the derivation actually used, so a `send` with a
-  different password re-derives instead of reusing another password's macaroon
-  while one naming the wallet's own team explicitly still hits the cache; a slot
-  also records *whether* that `teamId` was an explicit override, because a `send`
-  omitting `teamId` asks for the wallet's own team and must not be answered from
-  an overridden slot; `#pending` holds **every** in-flight derivation for a
-  wallet, not just the newest, so a second caller's wrong password neither
-  displaces a good derivation already running nor discards its result; and a
-  rejected derivation drops only its own `#pending` slot, so a wallet already
-  prepared in `#ready` survives someone else's bad password.
+- Cache invariants worth preserving — each one has a regression test in
+  `transactions.send.test.ts`:
+  - Only the **macaroon** is retained, never `masterKey` / `masterPasswordHash`.
+  - A slot records a sha256 fingerprint of the password plus the `teamId` the
+    derivation actually used, so a `send` with a different password re-derives
+    instead of reusing another password's macaroon — while one naming the
+    wallet's own team explicitly still hits the cache.
+  - A slot also records *whether* that `teamId` was an explicit override: a
+    `send` omitting `teamId` asks for the wallet's own team and must not be
+    answered from an overridden slot.
+  - `#pending` holds **every** in-flight derivation for a wallet, not just the
+    newest, so a second caller's wrong password neither displaces a good
+    derivation already running nor discards its result.
+  - A rejected derivation drops only its own `#pending` slot, so a wallet
+    already prepared in `#ready` survives someone else's bad password.
 - Argon2id is **synchronous** and blocks the event loop for seconds — prepare is
   `async` because of the API calls, not because key derivation yields.
 
