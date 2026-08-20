@@ -92,18 +92,20 @@ Resource getters are lazy and call `requireServiceApiKey`:
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
   Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`
   + node REST call). The prepare step is cached per wallet in
-  `Transactions.#prepared`, so it runs once, not per send.
+  `Transactions.#ready`, so it runs once, not per send.
 - `prepareSend(params)` runs that step ahead of time; `isSendReady(walletId)`
   reports whether the macaroon is resident (`false` while still deriving —
-  it checks the resolved value, not the pending promise); `forgetSend(walletId)`
+  it checks `#ready`, not the in-flight `#pending` slot); `forgetSend(walletId)`
   evicts. `PaymentsConfig.send` pre-warms an array of wallets from the
   constructor, sequentially and fire-and-forget (errors swallowed there;
   `send()` re-derives and surfaces them).
 - Cache invariants worth preserving: only the **macaroon** is retained, never
-  `masterKey` / `masterPasswordHash`; a slot records a sha256 fingerprint of
-  `(password, teamId)` so a `send` with different credentials re-derives instead
-  of reusing another password's macaroon; a rejected prepare evicts its slot so
-  transient failures don't poison later sends.
+  `masterKey` / `masterPasswordHash`; a slot records a sha256 fingerprint of the
+  password plus the `teamId` the derivation actually used, so a `send` with a
+  different password re-derives instead of reusing another password's macaroon
+  while one naming the wallet's own team explicitly still hits the cache; a
+  rejected derivation drops only its own `#pending` slot, so a wallet already
+  prepared in `#ready` survives someone else's bad password.
 - Argon2id is **synchronous** and blocks the event loop for seconds — prepare is
   `async` because of the API calls, not because key derivation yields.
 

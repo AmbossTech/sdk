@@ -302,4 +302,66 @@ describe('Transactions.prepareSend', () => {
 
     assert.equal(transactions.isSendReady('w1'), true);
   });
+
+  it('keeps an already-prepared wallet after a send() with the wrong password fails', async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const { client, ops } = withCallLog(fakeClient(host));
+    const transactions = new Transactions(client);
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+
+    await assert.rejects(
+      transactions.send({
+        walletId: 'w1',
+        password: 'a-different-password',
+        destination: { bolt11: 'lnbc1xyz' },
+      }),
+      /admin macaroon/,
+    );
+    assert.equal(
+      transactions.isSendReady('w1'),
+      true,
+      "one caller's bad password must not evict a working prepared wallet",
+    );
+
+    ops.length = 0;
+    const result = await transactions.send({
+      walletId: 'w1', // still no password — the surviving macaroon is used
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 0, 'the survivor must still be cached');
+    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+  });
+
+  it("reuses the prepared context when send() passes the wallet's own teamId", async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const { client, ops } = withCallLog(fakeClient(host));
+    const transactions = new Transactions(client);
+
+    // Prepared without teamId, so it is resolved from the wallet.
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    ops.length = 0;
+
+    const result = await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      teamId: TEAM_ID, // the same id prepareSend resolved — identical credentials
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(
+      countOf(ops, 'GetWalletSendContext'),
+      0,
+      'identical credentials must not re-derive',
+    );
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 0);
+    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+  });
 });

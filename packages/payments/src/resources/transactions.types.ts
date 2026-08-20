@@ -39,13 +39,21 @@ export interface PrepareSendParams {
 
 /**
  * Everything `send()` needs before it can create and pay a transaction,
- * resolved once and cached per wallet. Only the decrypted macaroon is
- * retained — the Argon2 master key is discarded after the decrypt.
+ * resolved once and cached per wallet, plus the team id that resolution used.
+ * Only the decrypted macaroon is retained — the Argon2 master key is discarded
+ * after the decrypt.
  */
 export type PreparedSend =
   | { kind: 'sandbox' }
   | {
       kind: 'node';
+      /**
+       * Team id used as the Argon2 salt — the wallet's own unless the caller
+       * overrode it. `send()` never reads this; the cache records it so a later
+       * call naming the same team id explicitly is recognised as the same
+       * credentials. Not a secret: the service API key alone can read it.
+       */
+      teamId: string;
       restHost: string;
       macaroon: string;
       tlsCert?: string | null;

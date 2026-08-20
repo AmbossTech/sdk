@@ -33,36 +33,56 @@ const DEFAULT_TIMEOUT_SECONDS = 60;
  */
 const FEE_LIMIT_SATS = '4294967296';
 
-/**
- * Cache slot for one wallet's prepared send context. `value` is only set once
- * `promise` resolves, so `isSendReady` can distinguish "ready" from "still
- * deriving" — Argon2 takes seconds and the promise exists for all of it.
- */
-interface PreparedSlot {
-  promise: Promise<PreparedSend>;
-  /** Identifies the credentials this slot was derived from — see {@link credentialFingerprint}. */
+/** The credentials a cache slot was derived from — see {@link isReusable}. */
+interface Credentials {
+  /** See {@link passwordFingerprint}. */
   fingerprint: string;
-  value?: PreparedSend;
+  /**
+   * Argon2 salt the slot derived with. A ready slot holds the *resolved* value
+   * (the wallet's own team unless the caller overrode it); a slot still
+   * deriving has not learned the wallet's team yet, so it holds whatever the
+   * caller passed — possibly nothing.
+   */
+  teamId?: string;
 }
 
 /**
- * Identifies the credentials a cache slot was derived from, so a `send()` made
+ * A derivation still running, kept only so concurrent callers share one Argon2
+ * pass. It is dropped when it settles, and only a *successful* one graduates to
+ * a {@link ReadySlot} — so a wrong password cannot disturb a prepared wallet.
+ */
+interface PendingSlot extends Credentials {
+  promise: Promise<PreparedSend>;
+}
+
+/** A finished derivation, held until `forgetSend()` or a newer successful one. */
+interface ReadySlot extends Credentials {
+  send: PreparedSend;
+}
+
+/**
+ * Identifies the password a cache slot was derived from, so a `send()` made
  * with a *different* password can never reuse a macaroon decrypted from the old
  * one. Not a password hash: it only has to be a fast in-process equality check,
  * and the plaintext password already lives in the caller's memory.
  */
-function credentialFingerprint(params: PrepareSendParams): string {
+function passwordFingerprint(password: string | undefined): string {
   return createHash('sha256')
-    .update(`${params.password ?? ''}\u0000${params.teamId ?? ''}`)
+    .update(password ?? '')
     .digest('hex');
 }
 
 /**
  * A prepared slot is reusable when the caller supplied no password (the whole
  * point of preparing) or supplied exactly the credentials it was derived from.
+ * An explicit `teamId` equal to the one the slot resolved *is* the same
+ * credentials — the same salt derives the same key — so passing the wallet's own
+ * team id still hits the cache.
  */
-function isReusable(slot: PreparedSlot, params: PrepareSendParams): boolean {
-  return params.password === undefined || slot.fingerprint === credentialFingerprint(params);
+function isReusable(slot: Credentials, params: PrepareSendParams): boolean {
+  if (params.password === undefined) return true;
+  if (slot.fingerprint !== passwordFingerprint(params.password)) return false;
+  return params.teamId === undefined || params.teamId === slot.teamId;
 }
 
 /**
@@ -102,8 +122,15 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
-  /** Prepared send contexts, keyed by wallet id. ponytail: no TTL — call `forgetSend()` to refresh. */
-  readonly #prepared = new Map<string, PreparedSlot>();
+  /**
+   * Prepared send contexts, keyed by wallet id. Kept apart from `#pending` so
+   * a derivation that fails drops only its own attempt: one caller's wrong
+   * password must not evict a wallet that is already prepared and working.
+   * ponytail: no TTL — call `forgetSend()` to refresh.
+   */
+  readonly #ready = new Map<string, ReadySlot>();
+  /** Derivations still running, keyed by wallet id, so concurrent callers share one Argon2 pass. */
+  readonly #pending = new Map<string, PendingSlot>();
 
   constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
@@ -133,7 +160,7 @@ export class Transactions {
    * `false` while a `prepareSend()` for that wallet is still running.
    */
   isSendReady(walletId: string): boolean {
-    return this.#prepared.get(walletId)?.value !== undefined;
+    return this.#ready.has(walletId);
   }
 
   /**
@@ -142,7 +169,10 @@ export class Transactions {
    * admin access once a run of sends is done.
    */
   forgetSend(walletId: string): void {
-    this.#prepared.delete(walletId);
+    this.#ready.delete(walletId);
+    // Dropping the in-flight derivation too, so its result cannot land in
+    // #ready after the caller asked for the macaroon to be released.
+    this.#pending.delete(walletId);
   }
 
   async createReceive(
@@ -253,25 +283,43 @@ export class Transactions {
   /** Returns the wallet's prepared context, deriving and caching it on first use. */
   #prepare(params: PrepareSendParams): Promise<PreparedSend> {
     const { walletId } = params;
-    const cached = this.#prepared.get(walletId);
-    if (cached && isReusable(cached, params)) return cached.promise;
+
+    // Ready before pending: a wallet that is already prepared has to win over a
+    // derivation someone else has in flight, which may yet fail.
+    const ready = this.#ready.get(walletId);
+    if (ready && isReusable(ready, params)) return Promise.resolve(ready.send);
+
+    const inFlight = this.#pending.get(walletId);
+    if (inFlight && isReusable(inFlight, params)) return inFlight.promise;
 
     const promise = this.#resolveSendContext(params);
-    const slot: PreparedSlot = { promise, fingerprint: credentialFingerprint(params) };
-    this.#prepared.set(walletId, slot);
+    const slot: PendingSlot = {
+      promise,
+      fingerprint: passwordFingerprint(params.password),
+      teamId: params.teamId,
+    };
+    this.#pending.set(walletId, slot);
 
     // Attaching handlers here also marks `promise` as handled, so the
     // fire-and-forget constructor pre-warm can never raise `unhandledRejection`.
+    // Both branches no-op unless this slot is still the current one, so a
+    // `forgetSend()` mid-derivation is not undone by the result landing late.
     promise.then(
-      (value) => {
-        if (this.#prepared.get(walletId) === slot) {
-          this.#prepared.set(walletId, { ...slot, value });
-        }
+      (send) => {
+        if (this.#pending.get(walletId) !== slot) return;
+        this.#pending.delete(walletId);
+        this.#ready.set(walletId, {
+          send,
+          fingerprint: slot.fingerprint,
+          // The resolved salt, so a later `send()` naming it explicitly still
+          // reuses this slot. Sandbox derives no key and has none.
+          teamId: send.kind === 'node' ? send.teamId : undefined,
+        });
       },
       () => {
-        // Evict on failure so a transient error doesn't poison later sends.
+        // Only this attempt is dropped — a prepared wallet in #ready survives.
         // The rejection still reaches whoever awaits `promise`.
-        if (this.#prepared.get(walletId) === slot) this.#prepared.delete(walletId);
+        if (this.#pending.get(walletId) === slot) this.#pending.delete(walletId);
       },
     );
 
@@ -327,6 +375,7 @@ export class Transactions {
 
     return {
       kind: 'node',
+      teamId,
       restHost: node.restHost,
       macaroon,
       tlsCert: node.tlsCert,
