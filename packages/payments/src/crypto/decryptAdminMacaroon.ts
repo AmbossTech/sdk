@@ -25,10 +25,10 @@ export interface DecryptAdminMacaroonParams {
  * authenticate directly against the node. Throws {@link DecryptionError} on any
  * failure (almost always a wrong password).
  */
-export function decryptAdminMacaroon(params: DecryptAdminMacaroonParams): string {
+export async function decryptAdminMacaroon(params: DecryptAdminMacaroonParams): Promise<string> {
   const { password, teamId, encryptedSymmetricKey, encryptedMacaroon } = params;
   try {
-    const masterKey = deriveMasterKey(password, teamId);
+    const masterKey = await deriveMasterKey(password, teamId);
     return decryptAdminMacaroonWithMasterKey({
       masterKey,
       encryptedSymmetricKey,

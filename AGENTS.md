@@ -112,8 +112,8 @@ Resource getters are lazy and call `requireServiceApiKey`:
     the map.
   - `forgetSend` mid-preparation wins: a result landing afterwards is discarded
     rather than resurrecting the macaroon.
-- Argon2id is **synchronous** and blocks the event loop for seconds — prepare is
-  `async` because of the API calls, not because key derivation yields.
+- Argon2id runs on a shared worker thread, so it does not block the event loop.
+  Prepare is still asynchronous because it includes API calls and CPU work.
 
 #### Webhooks
 

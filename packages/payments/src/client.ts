@@ -40,8 +40,8 @@ export class Payments extends AmbossClient {
 
   /**
    * Fire-and-forget pre-warm of the configured wallets. Sequential on purpose:
-   * Argon2id is synchronous and CPU-bound, so running the wallets concurrently
-   * would interleave nothing and only delay the first one becoming ready.
+   * each wallet needs two memory-hard Argon2id passes, so limiting work to one
+   * wallet at a time avoids excessive memory pressure during startup.
    *
    * Poll `transactions.isSendReady(walletId)` to see when a wallet is done, or
    * `await transactions.prepareSend(...)` instead of using this option when you
