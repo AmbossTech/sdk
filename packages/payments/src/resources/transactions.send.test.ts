@@ -254,6 +254,9 @@ describe('Transactions.prepareSend', () => {
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.equal(ops.length, 1, 'send() should issue exactly one operation');
     assert.equal(countOf(ops, 'CreateSendTransaction'), 1);
+    // The cache only short-circuits credential derivation — the node call
+    // itself must still carry the fee limit every send gets.
+    assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
 
   it('reports isSendReady false while preparing and true once resolved', async () => {
