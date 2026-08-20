@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/AmbossTech/sdk/compare/payments-v1.1.0...payments-v1.1.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* **payments:** move Argon2 KDF off the event loop ([#43](https://github.com/AmbossTech/sdk/issues/43)) ([15fa460](https://github.com/AmbossTech/sdk/commit/15fa46003feb393283327c448f38af1adfbccc0a))
+
 ## [1.1.0](https://github.com/AmbossTech/sdk/compare/payments-v1.0.3...payments-v1.1.0) (2026-08-20)
 
 
