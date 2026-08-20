@@ -14,7 +14,13 @@ import { sendLndPayment } from '../node/lnd.js';
 import type { PaymentLifecycleStatus } from '../node/types.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
-import type { SendDestination, SendParams, SendResult } from './transactions.types.js';
+import type {
+  PreparedSend,
+  PrepareSendParams,
+  SendDestination,
+  SendParams,
+  SendResult,
+} from './transactions.types.js';
 
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
@@ -62,9 +68,82 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
+  /**
+   * Macaroons prepared by {@link prepareSend}, keyed by wallet id. Only a
+   * *successful* preparation lands here, and only `prepareSend` ever writes:
+   * `send()` never adds to or evicts from this map, so no failing send can
+   * disturb a prepared wallet. ponytail: no TTL — call `forgetSend()` to
+   * refresh rotated credentials.
+   */
+  readonly #prepared = new Map<string, PreparedSend>();
+  /** Preparations still running, so concurrent `prepareSend` calls share one Argon2 pass. */
+  readonly #pending = new Map<string, Promise<PreparedSend>>();
 
   constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
+  }
+
+  /**
+   * Resolves and caches everything `send()` needs before it can pay: the
+   * wallet's environment type, its node endpoint, and — for live wallets — the
+   * decrypted admin macaroon. Two GraphQL round-trips plus two Argon2id passes,
+   * so calling this ahead of time takes seconds off the first `send()`.
+   *
+   * A later `send()` for the same wallet that **omits `password`** uses what
+   * this cached. A `send()` that passes a `password` always derives afresh —
+   * the cache never has to decide whether two sets of credentials match.
+   *
+   * Safe to call repeatedly: an already-prepared wallet resolves immediately,
+   * and concurrent calls for one wallet share a single derivation. Call
+   * {@link forgetSend} first to re-derive after credentials rotate.
+   *
+   * **Blocks the event loop.** Argon2id is synchronous and CPU-bound
+   * (m=64 MiB, t=3, p=4); this method is `async` because of the API calls, not
+   * because the key derivation yields. Prepare during startup, not while
+   * serving requests.
+   */
+  async prepareSend(params: PrepareSendParams): Promise<void> {
+    const { walletId } = params;
+    if (this.#prepared.has(walletId)) return;
+
+    const inFlight = this.#pending.get(walletId);
+    if (inFlight) {
+      await inFlight;
+      return;
+    }
+
+    const promise = this.#resolveSendContext(params);
+    this.#pending.set(walletId, promise);
+    try {
+      const prepared = await promise;
+      // Skip the write if `forgetSend()` ran mid-derivation — the caller asked
+      // for this macaroon *not* to be held.
+      if (this.#pending.get(walletId) === promise) this.#prepared.set(walletId, prepared);
+    } finally {
+      if (this.#pending.get(walletId) === promise) this.#pending.delete(walletId);
+    }
+  }
+
+  /**
+   * Whether `walletId`'s macaroon and node endpoint are decrypted and resident
+   * in memory, so a password-less `send()` would skip straight to creating the
+   * transaction. `false` while a `prepareSend()` for that wallet is still
+   * running.
+   */
+  isSendReady(walletId: string): boolean {
+    return this.#prepared.has(walletId);
+  }
+
+  /**
+   * Drops a wallet's prepared context, releasing the decrypted macaroon from
+   * memory. Use it to pick up rotated node credentials, or to stop holding node
+   * admin access once a run of sends is done.
+   */
+  forgetSend(walletId: string): void {
+    this.#prepared.delete(walletId);
+    // Dropping the in-flight preparation too, so its result cannot land in
+    // #prepared after the caller asked for the macaroon to be released.
+    this.#pending.delete(walletId);
   }
 
   async createReceive(
@@ -88,64 +167,27 @@ export class Transactions {
    * settles the transaction asynchronously according to the
    * `amb_sandbox_behavior` metadata (`complete` / `fail` / `expire`; default
    * `expire`). No password is required.
+   *
+   * Call {@link prepareSend} beforehand (or pass `send` to the `Payments`
+   * constructor) to move steps 1–2 off this path entirely.
    */
   async send(params: SendParams): Promise<SendResult> {
-    const { walletId, password, destination, onUpdate, signal } = params;
+    const { destination, onUpdate, signal } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
-    // 1. Fetch the wallet's send context up-front: the environment type (to
-    //    detect sandbox) and the team id. Both are readable with only the
-    //    service API key — no team password required yet. Sandbox wallets
-    //    settle server-side, so the SDK only has to create the send.
-    const ctxRes = await this.#sdk.GetWalletSendContext({ id: walletId });
-    const walletCtx = ctxRes.payment.wallet.find_one;
-    const isSandbox = walletCtx.environment.type === 'SANDBOX';
+    // 1–2. Resolve the node endpoint + decrypted macaroon. A caller who passes
+    //      a `password` always gets a fresh derivation; only a password-less
+    //      send reads what `prepareSend()` cached. Either way a wrong password
+    //      fails here, before any transaction is created.
+    const prepared = await this.#sendContext(params);
 
-    if (isSandbox) {
-      const createRes = await this.#sdk.CreateSendTransaction({
-        input: buildCreateSendInput(params),
-      });
-      return { transaction: createRes.payment.transaction.create_send, payment: null };
-    }
-
-    // 2. Live wallet — a team password is required to decrypt the node macaroon.
-    //    teamId is the Argon2 salt; it comes back on the wallet above, so no
-    //    separate lookup is needed. Callers may still override it explicitly.
-    if (!password) {
-      throw new PaymentSendError('A team password is required to send from a live wallet.');
-    }
-    const teamId = params.teamId ?? walletCtx.team_id;
-    const { masterKey, masterPasswordHash } = createMasterPasswordHash(password, teamId);
-
-    // 3. Resolve the node + its credentials — node_permissions is gated on the
-    //    password hash, so a wrong password is rejected here before any payment.
-    const permRes = await this.#sdk.GetWalletNodePermissions({
-      id: walletId,
-      password_hash: masterPasswordHash,
-    });
-    const wallet = permRes.payment.wallet.find_one;
-    const isAsset = wallet.asset.type !== 'BASE_ASSET';
-    const node = selectSendNode(wallet.node_permissions.nodes, isAsset);
-    if (!node) {
-      throw new PaymentSendError(
-        isAsset
-          ? 'No litd endpoint available for this wallet.'
-          : 'No LND endpoint available for this wallet.',
-      );
-    }
-
-    // 4. Decrypt the admin macaroon in-process (reusing the master key).
-    const macaroon = decryptAdminMacaroonWithMasterKey({
-      masterKey,
-      encryptedSymmetricKey: wallet.node_permissions.encrypted_symmetric_key,
-      encryptedMacaroon: node.encryptedMacaroon,
-    });
-
-    // 5. Create the send transaction → backend returns the bolt11 to pay.
+    // 3. Create the send transaction → backend returns the bolt11 to pay.
     const createRes = await this.#sdk.CreateSendTransaction({
       input: buildCreateSendInput(params),
     });
     const transaction = createRes.payment.transaction.create_send;
+
+    if (prepared.kind === 'sandbox') return { transaction, payment: null };
 
     // Already-completed: `create_send` found an existing COMPLETED transaction
     // with the same payment hash (a genuine duplicate, or an idempotency-key
@@ -173,19 +215,19 @@ export class Transactions {
       throw new PaymentSendError('Backend did not return a payment request.');
     }
 
-    // 6. Execute the payment against the node.
+    // 4. Execute the payment against the node.
     const onStatus = onUpdate
       ? (status: PaymentLifecycleStatus) => onUpdate({ status })
       : undefined;
     const common = {
-      restHost: node.restHost,
-      macaroon,
-      tlsCert: node.tlsCert,
+      restHost: prepared.restHost,
+      macaroon: prepared.macaroon,
+      tlsCert: prepared.tlsCert,
       onUpdate: onStatus,
       signal,
     };
 
-    const payment = isAsset
+    const payment = prepared.isAsset
       ? await sendAssetPayment({
           ...common,
           body: {
@@ -194,11 +236,7 @@ export class Transactions {
               fee_limit_sat: FEE_LIMIT_SATS,
               timeout_seconds: timeoutSeconds,
             },
-            ...(wallet.asset.taproot_asset_details?.group_key
-              ? {
-                  group_key: hexGroupKeyToBase64(wallet.asset.taproot_asset_details.group_key),
-                }
-              : {}),
+            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
           },
         })
       : await sendLndPayment({
@@ -212,5 +250,76 @@ export class Transactions {
         });
 
     return { transaction, payment };
+  }
+
+  /**
+   * The context `send()` will pay with. Passing a `password` means "use these
+   * credentials", so it always derives; omitting one means "use what was
+   * prepared", falling through to a derivation when nothing was — which is how
+   * sandbox wallets (no password, nothing to decrypt) still work unprepared,
+   * and how an unprepared live wallet gets its "password required" error.
+   */
+  #sendContext(params: SendParams): Promise<PreparedSend> {
+    if (params.password !== undefined) return this.#resolveSendContext(params);
+
+    const prepared = this.#prepared.get(params.walletId);
+    return prepared ? Promise.resolve(prepared) : this.#resolveSendContext(params);
+  }
+
+  async #resolveSendContext(params: PrepareSendParams): Promise<PreparedSend> {
+    const { walletId, password } = params;
+
+    // 1. The wallet's environment type (to detect sandbox) and team id. Both are
+    //    readable with only the service API key — no team password required yet.
+    //    Sandbox wallets settle server-side, so there is nothing to decrypt.
+    const ctxRes = await this.#sdk.GetWalletSendContext({ id: walletId });
+    const walletCtx = ctxRes.payment.wallet.find_one;
+    if (walletCtx.environment.type === 'SANDBOX') return { kind: 'sandbox' };
+
+    // 2. Live wallet — a team password is required to decrypt the node macaroon.
+    //    teamId is the Argon2 salt; it comes back on the wallet above, so no
+    //    separate lookup is needed. Callers may still override it explicitly.
+    if (!password) {
+      throw new PaymentSendError('A team password is required to send from a live wallet.');
+    }
+    const teamId = params.teamId ?? walletCtx.team_id;
+    const { masterKey, masterPasswordHash } = createMasterPasswordHash(password, teamId);
+
+    // 3. Resolve the node + its credentials — node_permissions is gated on the
+    //    password hash, so a wrong password is rejected here before any payment.
+    const permRes = await this.#sdk.GetWalletNodePermissions({
+      id: walletId,
+      password_hash: masterPasswordHash,
+    });
+    const wallet = permRes.payment.wallet.find_one;
+    const isAsset = wallet.asset.type !== 'BASE_ASSET';
+    const node = selectSendNode(wallet.node_permissions.nodes, isAsset);
+    if (!node) {
+      throw new PaymentSendError(
+        isAsset
+          ? 'No litd endpoint available for this wallet.'
+          : 'No LND endpoint available for this wallet.',
+      );
+    }
+
+    // 4. Decrypt the admin macaroon in-process (reusing the master key). Only
+    //    the macaroon is kept: `masterKey` and `masterPasswordHash` go out of
+    //    scope here rather than being cached, so a prepared wallet holds node
+    //    access for one node instead of the key to every wallet in the team.
+    const macaroon = decryptAdminMacaroonWithMasterKey({
+      masterKey,
+      encryptedSymmetricKey: wallet.node_permissions.encrypted_symmetric_key,
+      encryptedMacaroon: node.encryptedMacaroon,
+    });
+    const groupKeyHex = wallet.asset.taproot_asset_details?.group_key;
+
+    return {
+      kind: 'node',
+      restHost: node.restHost,
+      macaroon,
+      tlsCert: node.tlsCert,
+      isAsset,
+      ...(groupKeyHex ? { groupKeyBase64: hexGroupKeyToBase64(groupKeyHex) } : {}),
+    };
   }
 }

@@ -37,7 +37,7 @@
     "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.build.cjs.json && cp dist-cjs.package.json dist-cjs/package.json",
     "clean": "rm -rf dist dist-cjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test 'src/**/*.test.ts'",
     "refresh-schema": "tsx scripts/refresh-schema.ts"
   },
   "dependencies": {

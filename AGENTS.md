@@ -61,6 +61,7 @@ new Payments({
   baseUrl?: string,
   fetch?: typeof fetch,
   timeoutMs?: number,
+  send?: readonly PrepareSendParams[], // wallets to pre-warm for sending, in the background
 });
 ```
 
@@ -70,7 +71,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
 | --------------- | -------------- | ------------------------------------------------------------- |
 | `.environments` | `Environments` | `list()`, `get(id)`, `create(input)`, `delete(id)`            |
 | `.wallets`      | `Wallets`      | `list({ environmentId })`, `get(id)`, `create(input)`, `delete(id)` |
-| `.transactions` | `Transactions` | `createReceive(input)`, `send(params)`                        |
+| `.transactions` | `Transactions` | `createReceive(input)`, `send(params)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
 | `.webhooks`     | `Webhooks`     | `verify(input)` — does NOT require any API key                |
 
 `Payments.webhooks` is also a static reference to `Webhooks` for stateless use.
@@ -87,6 +88,32 @@ Resource getters are lazy and call `requireServiceApiKey`:
   driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
+- `send` is split into a **prepare** step (wallet send context →
+  `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
+  Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`
+  + node REST call). `prepareSend` runs that step ahead of time and caches the
+  macaroon per wallet in `Transactions.#prepared`; `isSendReady(walletId)`
+  reports whether one is resident; `forgetSend(walletId)` drops it.
+  `PaymentsConfig.send` pre-warms an array of wallets from the constructor,
+  sequentially and fire-and-forget (per-wallet errors swallowed there; a missing
+  `serviceApiKey` still throws from the constructor).
+- **The one rule the cache runs on:** only a `send` that omits `password` reads
+  it, and only `prepareSend` writes it. A `send` carrying a password always
+  derives afresh. That is deliberate, and it is what keeps the cache from ever
+  having to decide whether two sets of credentials are equivalent — the question
+  that produced three rounds of bugs when the cache was credential-keyed
+  (wrong-password eviction, a concurrent attempt displacing a good one, and an
+  omitted `teamId` being answered from an overridden slot). Do not "optimize" by
+  letting password-bearing sends hit the cache without reintroducing all of it.
+- Remaining invariants, each with a regression test in
+  `transactions.send.test.ts`:
+  - Only the **macaroon** is retained, never `masterKey` / `masterPasswordHash`.
+  - A failing `send` cannot disturb a prepared wallet, because it never touches
+    the map.
+  - `forgetSend` mid-preparation wins: a result landing afterwards is discarded
+    rather than resurrecting the macaroon.
+- Argon2id is **synchronous** and blocks the event loop for seconds — prepare is
+  `async` because of the API calls, not because key derivation yields.
 
 #### Webhooks
 

@@ -43,7 +43,7 @@
     "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.build.cjs.json && cp dist-cjs.package.json dist-cjs/package.json",
     "clean": "rm -rf dist dist-cjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test 'src/**/*.test.ts'",
     "test:examples": "node examples/verify-webhook.mjs && node examples/verify-webhook.cjs",
     "typecheck:examples": "tsc --noEmit -p tsconfig.examples.cjs.json",
     "codegen": "graphql-codegen --config codegen.ts"

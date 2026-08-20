@@ -43,6 +43,7 @@ new Payments({
   baseUrl?: string,            // default: https://rails.amboss.tech/graphql
   fetch?: typeof fetch,        // override for tests / non-Node runtimes
   timeoutMs?: number,          // default: 30000
+  send?: Array<{ walletId: string, password?: string, teamId?: string }>, // pre-warm — see Sending
 });
 ```
 
@@ -190,7 +191,7 @@ with the terminal result.
 const { transaction, payment } = await payments.transactions.send({
   walletId,
   password, // team password — used only to decrypt the node macaroon locally
-  teamId, // required with a serviceApiKey (Argon2 salt); omit and it's resolved from the user
+  teamId, // optional (Argon2 salt) — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
   onUpdate: ({ status }) => console.log(status), // 'IN_FLIGHT' | ...
@@ -221,6 +222,64 @@ const { transaction, payment } = await payments.transactions.send({
 
 payment; // null — settlement happens server-side
 ```
+
+#### Pre-warming a wallet
+
+Before it can pay, `send` has to fetch the wallet's send context, fetch its node
+permissions, and run **two Argon2id passes** (m=64 MiB, t=3, p=4) to derive the
+key that decrypts the macaroon. That is seconds of work, and none of it depends
+on the invoice.
+
+`prepareSend` does it up front and caches the result per wallet. Afterwards
+`send` issues a single API call — `CreateSendTransaction` — and pays:
+
+```ts
+await payments.transactions.prepareSend({ walletId, password });
+
+payments.transactions.isSendReady(walletId); // true — macaroon is in memory
+
+// no password needed now: the macaroon is already decrypted
+await payments.transactions.send({ walletId, destination: { bolt11: 'lnbc1...' } });
+
+payments.transactions.forgetSend(walletId); // drop it again
+```
+
+Pass `send` to the constructor to start this during startup instead:
+
+```ts
+const payments = new Payments({
+  serviceApiKey,
+  send: [{ walletId, password }],
+});
+
+// ...prepared in the background; poll until it lands
+payments.transactions.isSendReady(walletId);
+```
+
+The constructor form is fire-and-forget and **ignores failures** — a bad
+password surfaces later, from `send`. Use `await prepareSend(...)` when you want
+to see the error at startup.
+
+Notes:
+
+- **Argon2id blocks the event loop** while it runs; it is synchronous, CPU-bound
+  work that no amount of `await` yields on. Prepare at startup, not mid-request.
+- Each wallet costs its own derivation, so a long `send` list takes a while.
+  Entries are prepared one at a time (running them concurrently would not
+  overlap anything).
+- `isSendReady` is `false` while a preparation is still running, `true` only
+  once the macaroon is resident.
+- **Only a `send` that omits `password` uses the cache.** Passing a `password`
+  means "use these credentials", so it always derives afresh — the same cost as
+  not preparing at all — and never reads or replaces what you prepared. So a
+  typo'd password fails that one call and nothing else: the prepared wallet stays
+  prepared and later password-less sends keep working.
+- The cache has no expiry. Call `forgetSend(walletId)` to pick up rotated node
+  credentials — or to stop holding decrypted node admin access in memory once a
+  run of sends is finished. Only the macaroon is retained; the Argon2 master key
+  is discarded after the decrypt.
+- Sandbox wallets prepare too (no password, nothing to decrypt) — it just caches
+  the fact that no node payment is needed.
 
 ## Examples
 

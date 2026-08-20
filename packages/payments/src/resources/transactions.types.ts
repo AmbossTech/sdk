@@ -15,7 +15,12 @@ export interface SendProgress {
   status: PaymentLifecycleStatus;
 }
 
-export interface SendParams {
+/**
+ * Credentials needed to resolve a wallet's send context — everything
+ * {@link SendParams} carries except the payment itself. Used by
+ * `Transactions.prepareSend` and by the `send` option on `PaymentsConfig`.
+ */
+export interface PrepareSendParams {
   /** Wallet to send from. */
   walletId: string;
   /**
@@ -30,6 +35,26 @@ export interface SendParams {
    * value.
    */
   teamId?: string;
+}
+
+/**
+ * Everything `send()` needs before it can create and pay a transaction,
+ * resolved once and cached per wallet. Only the decrypted macaroon is retained
+ * — the Argon2 master key is discarded after the decrypt.
+ */
+export type PreparedSend =
+  | { kind: 'sandbox' }
+  | {
+      kind: 'node';
+      restHost: string;
+      macaroon: string;
+      tlsCert?: string | null;
+      isAsset: boolean;
+      /** Taproot asset group key, already converted to the base64 litd expects. */
+      groupKeyBase64?: string;
+    };
+
+export interface SendParams extends PrepareSendParams {
   destination: SendDestination;
   /** Idempotency key forwarded to `create_send`. */
   idempotencyKey?: string;

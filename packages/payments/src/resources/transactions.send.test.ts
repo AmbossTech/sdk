@@ -37,11 +37,18 @@ async function startNode(lines: object[]): Promise<string> {
   return `http://127.0.0.1:${addr.port}`;
 }
 
-/** Fake GraphQLClient that answers the operations send() issues. */
+/**
+ * Fake GraphQLClient that answers the operations send() issues.
+ *
+ * The node credentials are always encrypted for `TEAM_ID`. `walletTeamId` is
+ * the team the *wallet* reports; pointing it elsewhere models a wallet whose
+ * credentials only an explicit `teamId` override can decrypt.
+ */
 function fakeClient(
   restHost: string,
   environmentType: 'LIVE' | 'SANDBOX' = 'LIVE',
   createSendTransaction: object = { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' },
+  walletTeamId: string = TEAM_ID,
 ): GraphQLClient {
   const masterKey = deriveMasterKey(PASSWORD, TEAM_ID);
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
@@ -54,7 +61,7 @@ function fakeClient(
           wallet: {
             find_one: {
               id: 'w1',
-              team_id: TEAM_ID,
+              team_id: walletTeamId,
               environment: { id: 'e1', type: environmentType },
             },
           },
@@ -100,6 +107,52 @@ function fakeClient(
   };
 
   return { request } as unknown as GraphQLClient;
+}
+
+/** Wraps a fake client so a test can assert which operations were issued. */
+function withCallLog(inner: GraphQLClient): { client: GraphQLClient; ops: string[] } {
+  const ops: string[] = [];
+  const innerRequest = (inner as unknown as { request: (args: unknown) => Promise<unknown> })
+    .request;
+  const request = async (args: { document: string }): Promise<unknown> => {
+    ops.push(args.document);
+    return innerRequest(args);
+  };
+  return { client: { request } as unknown as GraphQLClient, ops };
+}
+
+const countOf = (ops: readonly string[], operation: string): number =>
+  ops.filter((document) => document.includes(operation)).length;
+
+/**
+ * Prepares `w1`, then fails a send on it with the wrong password — the shared
+ * arrangement for the cases asserting that a bad password disturbs nothing.
+ * `ops` is cleared right before the failing send, so what it holds on return is
+ * that send's own traffic.
+ */
+async function prepareThenFailWrongPassword(): Promise<{
+  transactions: Transactions;
+  ops: string[];
+}> {
+  const host = await startNode([
+    { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+  ]);
+  const { client, ops } = withCallLog(fakeClient(host));
+  const transactions = new Transactions(client);
+
+  await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+  ops.length = 0;
+
+  await assert.rejects(
+    transactions.send({
+      walletId: 'w1',
+      password: 'a-different-password',
+      destination: { bolt11: 'lnbc1xyz' },
+    }),
+    /admin macaroon/,
+  );
+
+  return { transactions, ops };
 }
 
 describe('Transactions.send', () => {
@@ -214,5 +267,156 @@ describe('Transactions.send', () => {
     assert.ok(result.payment);
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.ok(lastBody, 'node should have been called');
+  });
+});
+
+describe('Transactions.prepareSend', () => {
+  it('lets a later send() skip the context and permissions queries', async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const { client, ops } = withCallLog(fakeClient(host));
+    const transactions = new Transactions(client);
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    assert.equal(countOf(ops, 'GetWalletSendContext'), 1);
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
+
+    ops.length = 0;
+    const result = await transactions.send({
+      walletId: 'w1', // no password — the macaroon is already in memory
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(result.payment.status, 'SUCCEEDED');
+    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+    assert.equal(countOf(ops, 'CreateSendTransaction'), 1);
+    // The cache only short-circuits credential derivation — the node call
+    // itself must still carry the fee limit every send gets.
+    assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
+  });
+
+  it('reports isSendReady false while preparing and true once resolved', async () => {
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'));
+
+    const pending = transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    assert.equal(transactions.isSendReady('w1'), false, 'not ready while Argon2 is still running');
+
+    await pending;
+    assert.equal(transactions.isSendReady('w1'), true);
+
+    transactions.forgetSend('w1');
+    assert.equal(transactions.isSendReady('w1'), false);
+  });
+
+  it('does not reuse a prepared macaroon for a send() with a different password', async () => {
+    const { ops } = await prepareThenFailWrongPassword();
+
+    assert.equal(
+      countOf(ops, 'GetWalletNodePermissions'),
+      1,
+      'different credentials must re-derive rather than hit the cache',
+    );
+  });
+
+  it('marks a sandbox wallet ready without a password', async () => {
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+
+    await transactions.prepareSend({ walletId: 'w1' });
+
+    assert.equal(transactions.isSendReady('w1'), true);
+  });
+
+  it('keeps an already-prepared wallet after a send() with the wrong password fails', async () => {
+    const { transactions, ops } = await prepareThenFailWrongPassword();
+
+    assert.equal(
+      transactions.isSendReady('w1'),
+      true,
+      "one caller's bad password must not evict a working prepared wallet",
+    );
+
+    ops.length = 0;
+    const result = await transactions.send({
+      walletId: 'w1', // still no password — the surviving macaroon is used
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 0, 'the survivor must still be cached');
+    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+  });
+
+  it('always re-derives for a send() that passes a password, even the prepared one', async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const { client, ops } = withCallLog(fakeClient(host));
+    const transactions = new Transactions(client);
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    ops.length = 0;
+
+    // Passing a password means "use these credentials", so the cache is not
+    // consulted — that is what frees it from ever comparing credentials.
+    const result = await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1, 'a password send derives afresh');
+    assert.equal(transactions.isSendReady('w1'), true, 'and leaves the prepared wallet untouched');
+  });
+
+  it('keeps a concurrent successful preparation when another send has bad credentials', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    // Both derivations are in flight at once: the good one is started first,
+    // then the bad one, which must not displace it.
+    const prepared = transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    const failed = transactions.send({
+      walletId: 'w1',
+      password: 'a-different-password',
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    await prepared;
+    await assert.rejects(failed, /admin macaroon/);
+
+    assert.equal(
+      transactions.isSendReady('w1'),
+      true,
+      'a resolved prepareSend must survive a concurrent bad-credential send',
+    );
+  });
+
+  it('serves a password-less send from a wallet prepared with a teamId override', async () => {
+    const WALLET_TEAM_ID = '22222222-2222-2222-2222-222222222222';
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const { client, ops } = withCallLog(fakeClient(host, 'LIVE', undefined, WALLET_TEAM_ID));
+    const transactions = new Transactions(client);
+
+    // Only the override's salt decrypts this wallet, so preparing succeeding
+    // at all proves the override was used.
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD, teamId: TEAM_ID });
+    assert.equal(transactions.isSendReady('w1'), true);
+    ops.length = 0;
+
+    // The prepared macaroon is served as-is. There is no salt to re-resolve
+    // and disagree about, because nothing is re-derived.
+    const result = await transactions.send({
+      walletId: 'w1',
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+    assert.equal(countOf(ops, 'CreateSendTransaction'), 1);
   });
 });

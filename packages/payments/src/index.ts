@@ -12,6 +12,7 @@ export { WebhookVerificationError, DecryptionError, PaymentSendError } from './e
 export type { WebhookVerificationErrorCode } from './errors.js';
 
 export type {
+  PrepareSendParams,
   SendDestination,
   SendParams,
   SendProgress,
