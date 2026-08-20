@@ -269,17 +269,11 @@ Notes:
   overlap anything).
 - `isSendReady` is `false` while a preparation is still running, `true` only
   once the macaroon is resident.
-- A `send` that passes a *different* `password` than the one prepared re-derives
-  from scratch rather than reusing the cached macaroon. If that re-derivation
-  fails — a typo'd password, say — the wallet you prepared stays prepared, so
-  later password-less sends keep working, and a preparation still running when
-  the bad one arrives is left alone too. Passing the same `password` together
-  with an explicit `teamId` that matches the wallet's own team still hits the
-  cache; only a genuinely different credential re-derives.
-- If you prepared with a `teamId` override, a later `send` that passes a
-  `password` but *omits* `teamId` re-derives rather than reusing that slot —
-  omitting it means "resolve the team from the wallet", which is a different
-  salt. Password-less sends still reuse the prepared macaroon as normal.
+- **Only a `send` that omits `password` uses the cache.** Passing a `password`
+  means "use these credentials", so it always derives afresh — the same cost as
+  not preparing at all — and never reads or replaces what you prepared. So a
+  typo'd password fails that one call and nothing else: the prepared wallet stays
+  prepared and later password-less sends keep working.
 - The cache has no expiry. Call `forgetSend(walletId)` to pick up rotated node
   credentials — or to stop holding decrypted node admin access in memory once a
   run of sends is finished. Only the macaroon is retained; the Argon2 master key

@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import type { GraphQLClient } from 'graphql-request';
 
 import { createMasterPasswordHash } from '../crypto/argon2.js';
@@ -32,76 +30,6 @@ const DEFAULT_TIMEOUT_SECONDS = 60;
  * fee limit, without exposing fee-limit configuration to callers.
  */
 const FEE_LIMIT_SATS = '4294967296';
-
-/** The credentials a cache slot was derived from — see {@link isReusable}. */
-interface Credentials {
-  /** See {@link passwordFingerprint}. */
-  fingerprint: string;
-  /**
-   * Argon2 salt the slot derived with. A ready slot holds the *resolved* value
-   * (the wallet's own team unless the caller overrode it); a slot still
-   * deriving has not learned the wallet's team yet, so it holds whatever the
-   * caller passed — possibly nothing.
-   *
-   * ponytail: that asymmetry costs one missed dedupe. A `send` naming the
-   * wallet's own team cannot match a still-deriving slot prepared without a
-   * `teamId`, so it derives a second time; once the first slot is ready the
-   * two do match. Closing it means updating the slot mid-derivation, which is
-   * not worth the mutable state for a same-wallet concurrent-call window.
-   */
-  teamId?: string;
-  /**
-   * Whether {@link teamId} came from an explicit caller override rather than
-   * the wallet's own team. A `send()` that omits `teamId` asks for the wallet's
-   * team, which an overridden slot cannot answer for — see {@link isReusable}.
-   */
-  overrodeTeamId: boolean;
-}
-
-/**
- * A derivation still running, kept only so concurrent callers share one Argon2
- * pass. It is dropped when it settles, and only a *successful* one graduates to
- * a {@link ReadySlot} — so a wrong password cannot disturb a prepared wallet.
- */
-interface PendingSlot extends Credentials {
-  promise: Promise<PreparedSend>;
-}
-
-/** A finished derivation, held until `forgetSend()` or a newer successful one. */
-interface ReadySlot extends Credentials {
-  send: PreparedSend;
-}
-
-/**
- * Identifies the password a cache slot was derived from, so a `send()` made
- * with a *different* password can never reuse a macaroon decrypted from the old
- * one. Not a password hash: it only has to be a fast in-process equality check,
- * and the plaintext password already lives in the caller's memory.
- */
-function passwordFingerprint(password: string | undefined): string {
-  return createHash('sha256')
-    .update(password ?? '')
-    .digest('hex');
-}
-
-/**
- * A prepared slot is reusable when the caller supplied no password (the whole
- * point of preparing) or supplied exactly the credentials it was derived from.
- * An explicit `teamId` equal to the one the slot resolved *is* the same
- * credentials — the same salt derives the same key — so passing the wallet's own
- * team id still hits the cache.
- *
- * Omitting `teamId` alongside a password is *not* a wildcard: it asks for the
- * wallet's own team, so it may only reuse a slot that resolved the salt that
- * way. Reusing an overridden slot would silently derive against a team the
- * caller never named.
- */
-function isReusable(slot: Credentials, params: PrepareSendParams): boolean {
-  if (params.password === undefined) return true;
-  if (slot.fingerprint !== passwordFingerprint(params.password)) return false;
-  if (params.teamId === undefined) return !slot.overrodeTeamId;
-  return params.teamId === slot.teamId;
-}
 
 /**
  * Taproot asset group keys come from GraphQL as hex (a 33-byte compressed
@@ -141,19 +69,15 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
   /**
-   * Prepared send contexts, keyed by wallet id. Kept apart from `#pending` so
-   * a derivation that fails drops only its own attempt: one caller's wrong
-   * password must not evict a wallet that is already prepared and working.
-   * ponytail: no TTL — call `forgetSend()` to refresh.
+   * Macaroons prepared by {@link prepareSend}, keyed by wallet id. Only a
+   * *successful* preparation lands here, and only `prepareSend` ever writes:
+   * `send()` never adds to or evicts from this map, so no failing send can
+   * disturb a prepared wallet. ponytail: no TTL — call `forgetSend()` to
+   * refresh rotated credentials.
    */
-  readonly #ready = new Map<string, ReadySlot>();
-  /**
-   * Derivations still running, keyed by wallet id, so concurrent callers share
-   * one Argon2 pass. A wallet holds *all* its in-flight attempts rather than
-   * only the newest: a second caller's wrong password must not displace a good
-   * derivation already running, whose result would then be thrown away.
-   */
-  readonly #pending = new Map<string, readonly PendingSlot[]>();
+  readonly #prepared = new Map<string, PreparedSend>();
+  /** Preparations still running, so concurrent `prepareSend` calls share one Argon2 pass. */
+  readonly #pending = new Map<string, Promise<PreparedSend>>();
 
   constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
@@ -165,8 +89,13 @@ export class Transactions {
    * decrypted admin macaroon. Two GraphQL round-trips plus two Argon2id passes,
    * so calling this ahead of time takes seconds off the first `send()`.
    *
-   * Subsequent `send()` calls for the same wallet can then omit `password`.
-   * Safe to call repeatedly: an already-prepared wallet resolves immediately.
+   * A later `send()` for the same wallet that **omits `password`** uses what
+   * this cached. A `send()` that passes a `password` always derives afresh —
+   * the cache never has to decide whether two sets of credentials match.
+   *
+   * Safe to call repeatedly: an already-prepared wallet resolves immediately,
+   * and concurrent calls for one wallet share a single derivation. Call
+   * {@link forgetSend} first to re-derive after credentials rotate.
    *
    * **Blocks the event loop.** Argon2id is synchronous and CPU-bound
    * (m=64 MiB, t=3, p=4); this method is `async` because of the API calls, not
@@ -174,16 +103,35 @@ export class Transactions {
    * serving requests.
    */
   async prepareSend(params: PrepareSendParams): Promise<void> {
-    await this.#prepare(params);
+    const { walletId } = params;
+    if (this.#prepared.has(walletId)) return;
+
+    const inFlight = this.#pending.get(walletId);
+    if (inFlight) {
+      await inFlight;
+      return;
+    }
+
+    const promise = this.#resolveSendContext(params);
+    this.#pending.set(walletId, promise);
+    try {
+      const prepared = await promise;
+      // Skip the write if `forgetSend()` ran mid-derivation — the caller asked
+      // for this macaroon *not* to be held.
+      if (this.#pending.get(walletId) === promise) this.#prepared.set(walletId, prepared);
+    } finally {
+      if (this.#pending.get(walletId) === promise) this.#pending.delete(walletId);
+    }
   }
 
   /**
    * Whether `walletId`'s macaroon and node endpoint are decrypted and resident
-   * in memory, so a `send()` would skip straight to creating the transaction.
-   * `false` while a `prepareSend()` for that wallet is still running.
+   * in memory, so a password-less `send()` would skip straight to creating the
+   * transaction. `false` while a `prepareSend()` for that wallet is still
+   * running.
    */
   isSendReady(walletId: string): boolean {
-    return this.#ready.has(walletId);
+    return this.#prepared.has(walletId);
   }
 
   /**
@@ -192,9 +140,9 @@ export class Transactions {
    * admin access once a run of sends is done.
    */
   forgetSend(walletId: string): void {
-    this.#ready.delete(walletId);
-    // Dropping the in-flight derivation too, so its result cannot land in
-    // #ready after the caller asked for the macaroon to be released.
+    this.#prepared.delete(walletId);
+    // Dropping the in-flight preparation too, so its result cannot land in
+    // #prepared after the caller asked for the macaroon to be released.
     this.#pending.delete(walletId);
   }
 
@@ -227,10 +175,11 @@ export class Transactions {
     const { destination, onUpdate, signal } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
-    // 1–2. Resolve the node endpoint + decrypted macaroon. Returns from cache
-    //      when the wallet was prepared, otherwise does the full derivation
-    //      here. A wrong password fails here, before any transaction is made.
-    const prepared = await this.#prepare(params);
+    // 1–2. Resolve the node endpoint + decrypted macaroon. A caller who passes
+    //      a `password` always gets a fresh derivation; only a password-less
+    //      send reads what `prepareSend()` cached. Either way a wrong password
+    //      fails here, before any transaction is created.
+    const prepared = await this.#sendContext(params);
 
     // 3. Create the send transaction → backend returns the bolt11 to pay.
     const createRes = await this.#sdk.CreateSendTransaction({
@@ -303,69 +252,18 @@ export class Transactions {
     return { transaction, payment };
   }
 
-  /** Returns the wallet's prepared context, deriving and caching it on first use. */
-  #prepare(params: PrepareSendParams): Promise<PreparedSend> {
-    const { walletId } = params;
-
-    // Ready before pending: a wallet that is already prepared has to win over a
-    // derivation someone else has in flight, which may yet fail.
-    const ready = this.#ready.get(walletId);
-    if (ready && isReusable(ready, params)) return Promise.resolve(ready.send);
-
-    const inFlight = this.#pending.get(walletId) ?? [];
-    const reusable = inFlight.find((slot) => isReusable(slot, params));
-    if (reusable) return reusable.promise;
-
-    const promise = this.#resolveSendContext(params);
-    const slot: PendingSlot = {
-      promise,
-      fingerprint: passwordFingerprint(params.password),
-      teamId: params.teamId,
-      overrodeTeamId: params.teamId !== undefined,
-    };
-    this.#pending.set(walletId, [...inFlight, slot]);
-
-    // Attaching handlers here also marks `promise` as handled, so the
-    // fire-and-forget constructor pre-warm can never raise `unhandledRejection`.
-    // Both branches no-op unless this slot is still registered, so a
-    // `forgetSend()` mid-derivation is not undone by the result landing late.
-    promise.then(
-      (send) => {
-        if (!this.#dropPending(walletId, slot)) return;
-        this.#ready.set(walletId, {
-          send,
-          fingerprint: slot.fingerprint,
-          // The resolved salt, so a later `send()` naming it explicitly still
-          // reuses this slot. Sandbox derives no key and has none.
-          teamId: send.kind === 'node' ? send.teamId : undefined,
-          // Sandbox derives no key, so no override shaped this slot.
-          overrodeTeamId: send.kind === 'node' && slot.overrodeTeamId,
-        });
-      },
-      () => {
-        // Only this attempt is dropped — a prepared wallet in #ready and any
-        // sibling derivation both survive. The rejection still reaches whoever
-        // awaits `promise`.
-        this.#dropPending(walletId, slot);
-      },
-    );
-
-    return promise;
-  }
-
   /**
-   * Removes a settled derivation from `#pending`. Returns whether it was still
-   * registered — `false` means `forgetSend()` dropped it mid-flight, so its
-   * result must not be cached.
+   * The context `send()` will pay with. Passing a `password` means "use these
+   * credentials", so it always derives; omitting one means "use what was
+   * prepared", falling through to a derivation when nothing was — which is how
+   * sandbox wallets (no password, nothing to decrypt) still work unprepared,
+   * and how an unprepared live wallet gets its "password required" error.
    */
-  #dropPending(walletId: string, slot: PendingSlot): boolean {
-    const inFlight = this.#pending.get(walletId);
-    if (!inFlight?.includes(slot)) return false;
+  #sendContext(params: SendParams): Promise<PreparedSend> {
+    if (params.password !== undefined) return this.#resolveSendContext(params);
 
-    const remaining = inFlight.filter((candidate) => candidate !== slot);
-    if (remaining.length > 0) this.#pending.set(walletId, remaining);
-    else this.#pending.delete(walletId);
-    return true;
+    const prepared = this.#prepared.get(params.walletId);
+    return prepared ? Promise.resolve(prepared) : this.#resolveSendContext(params);
   }
 
   async #resolveSendContext(params: PrepareSendParams): Promise<PreparedSend> {
@@ -417,7 +315,6 @@ export class Transactions {
 
     return {
       kind: 'node',
-      teamId,
       restHost: node.restHost,
       macaroon,
       tlsCert: node.tlsCert,

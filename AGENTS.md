@@ -91,29 +91,27 @@ Resource getters are lazy and call `requireServiceApiKey`:
 - `send` is split into a **prepare** step (wallet send context →
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
   Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`
-  + node REST call). The prepare step is cached per wallet in
-  `Transactions.#ready`, so it runs once, not per send.
-- `prepareSend(params)` runs that step ahead of time; `isSendReady(walletId)`
-  reports whether the macaroon is resident (`false` while still deriving —
-  it checks `#ready`, not the in-flight `#pending` slots); `forgetSend(walletId)`
-  evicts. `PaymentsConfig.send` pre-warms an array of wallets from the
-  constructor, sequentially and fire-and-forget (errors swallowed there;
-  `send()` re-derives and surfaces them).
-- Cache invariants worth preserving — each one has a regression test in
+  + node REST call). `prepareSend` runs that step ahead of time and caches the
+  macaroon per wallet in `Transactions.#prepared`; `isSendReady(walletId)`
+  reports whether one is resident; `forgetSend(walletId)` drops it.
+  `PaymentsConfig.send` pre-warms an array of wallets from the constructor,
+  sequentially and fire-and-forget (per-wallet errors swallowed there; a missing
+  `serviceApiKey` still throws from the constructor).
+- **The one rule the cache runs on:** only a `send` that omits `password` reads
+  it, and only `prepareSend` writes it. A `send` carrying a password always
+  derives afresh. That is deliberate, and it is what keeps the cache from ever
+  having to decide whether two sets of credentials are equivalent — the question
+  that produced three rounds of bugs when the cache was credential-keyed
+  (wrong-password eviction, a concurrent attempt displacing a good one, and an
+  omitted `teamId` being answered from an overridden slot). Do not "optimize" by
+  letting password-bearing sends hit the cache without reintroducing all of it.
+- Remaining invariants, each with a regression test in
   `transactions.send.test.ts`:
   - Only the **macaroon** is retained, never `masterKey` / `masterPasswordHash`.
-  - A slot records a sha256 fingerprint of the password plus the `teamId` the
-    derivation actually used, so a `send` with a different password re-derives
-    instead of reusing another password's macaroon — while one naming the
-    wallet's own team explicitly still hits the cache.
-  - A slot also records *whether* that `teamId` was an explicit override: a
-    `send` omitting `teamId` asks for the wallet's own team and must not be
-    answered from an overridden slot.
-  - `#pending` holds **every** in-flight derivation for a wallet, not just the
-    newest, so a second caller's wrong password neither displaces a good
-    derivation already running nor discards its result.
-  - A rejected derivation drops only its own `#pending` slot, so a wallet
-    already prepared in `#ready` survives someone else's bad password.
+  - A failing `send` cannot disturb a prepared wallet, because it never touches
+    the map.
+  - `forgetSend` mid-preparation wins: a result landing afterwards is discarded
+    rather than resurrecting the macaroon.
 - Argon2id is **synchronous** and blocks the event loop for seconds — prepare is
   `async` because of the API calls, not because key derivation yields.
 

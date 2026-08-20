@@ -175,8 +175,11 @@ payments.transactions.isSendReady(walletId); // true once prepared
 await payments.transactions.send({ walletId, destination: { bolt11: 'lnbc1...' } });
 ```
 
-Two things to plan around:
+Three things to plan around:
 
+- **Drop the `password` from prepared sends.** It is what makes them fast: a
+  `send` that carries a password derives from scratch every time, prepared or
+  not. Keep passing it only where you have not prepared the wallet.
 - **Argon2id blocks the event loop.** It is synchronous CPU work; `await` does
   not make it yield. Prepare during startup or a warm-up hook, never inside a
   request handler. The constructor `send` option starts it in the background but
