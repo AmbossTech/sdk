@@ -102,6 +102,21 @@ function fakeClient(
   return { request } as unknown as GraphQLClient;
 }
 
+/** Wraps a fake client so a test can assert which operations were issued. */
+function withCallLog(inner: GraphQLClient): { client: GraphQLClient; ops: string[] } {
+  const ops: string[] = [];
+  const innerRequest = (inner as unknown as { request: (args: unknown) => Promise<unknown> })
+    .request;
+  const request = async (args: { document: string }): Promise<unknown> => {
+    ops.push(args.document);
+    return innerRequest(args);
+  };
+  return { client: { request } as unknown as GraphQLClient, ops };
+}
+
+const countOf = (ops: readonly string[], operation: string): number =>
+  ops.filter((document) => document.includes(operation)).length;
+
 describe('Transactions.send', () => {
   it('decrypts the macaroon, creates the send, and pays via the LND node', async () => {
     const host = await startNode([
@@ -214,5 +229,74 @@ describe('Transactions.send', () => {
     assert.ok(result.payment);
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.ok(lastBody, 'node should have been called');
+  });
+});
+
+describe('Transactions.prepareSend', () => {
+  it('lets a later send() skip the context and permissions queries', async () => {
+    const host = await startNode([
+      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
+    ]);
+    const { client, ops } = withCallLog(fakeClient(host));
+    const transactions = new Transactions(client);
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    assert.equal(countOf(ops, 'GetWalletSendContext'), 1);
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
+
+    ops.length = 0;
+    const result = await transactions.send({
+      walletId: 'w1', // no password — the macaroon is already in memory
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.ok(result.payment);
+    assert.equal(result.payment.status, 'SUCCEEDED');
+    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+    assert.equal(countOf(ops, 'CreateSendTransaction'), 1);
+  });
+
+  it('reports isSendReady false while preparing and true once resolved', async () => {
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'));
+
+    const pending = transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    assert.equal(transactions.isSendReady('w1'), false, 'not ready while Argon2 is still running');
+
+    await pending;
+    assert.equal(transactions.isSendReady('w1'), true);
+
+    transactions.forgetSend('w1');
+    assert.equal(transactions.isSendReady('w1'), false);
+  });
+
+  it('does not reuse a prepared macaroon for a send() with a different password', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
+    const { client, ops } = withCallLog(fakeClient(host));
+    const transactions = new Transactions(client);
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    ops.length = 0;
+
+    await assert.rejects(
+      transactions.send({
+        walletId: 'w1',
+        password: 'a-different-password',
+        destination: { bolt11: 'lnbc1xyz' },
+      }),
+      /admin macaroon/,
+    );
+    assert.equal(
+      countOf(ops, 'GetWalletNodePermissions'),
+      1,
+      'different credentials must re-derive rather than hit the cache',
+    );
+  });
+
+  it('marks a sandbox wallet ready without a password', async () => {
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+
+    await transactions.prepareSend({ walletId: 'w1' });
+
+    assert.equal(transactions.isSendReady('w1'), true);
   });
 });

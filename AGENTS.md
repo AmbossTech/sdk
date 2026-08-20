@@ -61,6 +61,7 @@ new Payments({
   baseUrl?: string,
   fetch?: typeof fetch,
   timeoutMs?: number,
+  send?: readonly PrepareSendParams[], // wallets to pre-warm for sending, in the background
 });
 ```
 
@@ -70,7 +71,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
 | --------------- | -------------- | ------------------------------------------------------------- |
 | `.environments` | `Environments` | `list()`, `get(id)`, `create(input)`, `delete(id)`            |
 | `.wallets`      | `Wallets`      | `list({ environmentId })`, `get(id)`, `create(input)`, `delete(id)` |
-| `.transactions` | `Transactions` | `createReceive(input)`, `send(params)`                        |
+| `.transactions` | `Transactions` | `createReceive(input)`, `send(params)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
 | `.webhooks`     | `Webhooks`     | `verify(input)` — does NOT require any API key                |
 
 `Payments.webhooks` is also a static reference to `Webhooks` for stateless use.
@@ -87,6 +88,24 @@ Resource getters are lazy and call `requireServiceApiKey`:
   driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
+- `send` is split into a **prepare** step (wallet send context →
+  `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
+  Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`
+  + node REST call). The prepare step is cached per wallet in
+  `Transactions.#prepared`, so it runs once, not per send.
+- `prepareSend(params)` runs that step ahead of time; `isSendReady(walletId)`
+  reports whether the macaroon is resident (`false` while still deriving —
+  it checks the resolved value, not the pending promise); `forgetSend(walletId)`
+  evicts. `PaymentsConfig.send` pre-warms an array of wallets from the
+  constructor, sequentially and fire-and-forget (errors swallowed there;
+  `send()` re-derives and surfaces them).
+- Cache invariants worth preserving: only the **macaroon** is retained, never
+  `masterKey` / `masterPasswordHash`; a slot records a sha256 fingerprint of
+  `(password, teamId)` so a `send` with different credentials re-derives instead
+  of reusing another password's macaroon; a rejected prepare evicts its slot so
+  transient failures don't poison later sends.
+- Argon2id is **synchronous** and blocks the event loop for seconds — prepare is
+  `async` because of the API calls, not because key derivation yields.
 
 #### Webhooks
 

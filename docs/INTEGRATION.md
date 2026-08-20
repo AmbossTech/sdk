@@ -51,6 +51,7 @@ new Payments({
   baseUrl?: string,       // default: https://rails.amboss.tech/graphql
   fetch?: typeof fetch,   // override for tests / non-Node runtimes
   timeoutMs?: number,     // default: 30000
+  send?: Array<{ walletId, password?, teamId? }>, // pre-warm sending — see Step 4
 });
 ```
 
@@ -140,6 +141,51 @@ await payments.transactions.send({
   metadata: { amb_sandbox_behavior: 'complete' }, // 'complete' | 'fail' | 'expire' (default)
 });
 ```
+
+### Making sends fast
+
+A cold `send` is expensive, and almost none of that cost is the payment. Before
+it can pay it must fetch the wallet's send context, fetch its node permissions,
+and run two Argon2id passes (m=64 MiB, t=3, p=4) to derive the key that decrypts
+your macaroon. Seconds of work — all of it independent of the invoice.
+
+Do it once, at startup:
+
+```ts
+const payments = new Payments({
+  serviceApiKey: process.env.AMBOSS_API_KEY,
+  send: [{ walletId, password: process.env.TEAM_PASSWORD }],
+});
+```
+
+or explicitly, when you want to await it:
+
+```ts
+await payments.transactions.prepareSend({
+  walletId,
+  password: process.env.TEAM_PASSWORD,
+});
+```
+
+Either way the wallet's macaroon ends up decrypted in memory, and every later
+`send` for it is one API call plus the payment — no password argument needed:
+
+```ts
+payments.transactions.isSendReady(walletId); // true once prepared
+await payments.transactions.send({ walletId, destination: { bolt11: 'lnbc1...' } });
+```
+
+Two things to plan around:
+
+- **Argon2id blocks the event loop.** It is synchronous CPU work; `await` does
+  not make it yield. Prepare during startup or a warm-up hook, never inside a
+  request handler. The constructor `send` option starts it in the background but
+  the block still happens — just early, while you have no traffic.
+- **You are holding node admin credentials in memory** for as long as the wallet
+  stays prepared, which is what makes sends fast. Call
+  `payments.transactions.forgetSend(walletId)` to release them, and to pick up
+  rotated node credentials — there is no expiry. The Argon2 master key is never
+  cached; only the one wallet's macaroon is.
 
 ## Step 5 — Consume webhooks
 
@@ -283,6 +329,9 @@ Send-specific: `DecryptionError` (wrong team password) and `PaymentSendError`
 - [ ] `idempotency_key` / `idempotencyKey` set on receives and sends so your
       retries are safe.
 - [ ] Sends handle `DecryptionError` / `PaymentSendError` distinctly.
+- [ ] Sending wallets are prepared at startup (constructor `send` or
+      `prepareSend`) so no request pays the Argon2id cost, and
+      `forgetSend` runs when node credentials rotate.
 - [ ] The full flow was exercised against a `SANDBOX` environment first
       (`amb_sandbox_behavior: 'complete' | 'fail' | 'expire'` covers all
       outcomes).
