@@ -1,5 +1,6 @@
-import { argon2id } from '@noble/hashes/argon2';
 import { bytesToHex } from '@noble/hashes/utils';
+
+import { runArgon2id } from './argon2Worker.cjs';
 
 /**
  * Argon2id parameters. These MUST match the values used by the amboss-rails UI
@@ -21,10 +22,10 @@ export const ARGON2_PARAMS = {
  * Derives the master key (hex) from the team password and team id.
  * The team id is used as the Argon2 salt (trimmed + lowercased), matching the UI.
  */
-export function deriveMasterKey(password: string, teamId: string): string {
+export async function deriveMasterKey(password: string, teamId: string): Promise<string> {
   const salt = teamId.trim().toLowerCase();
   const key = password.trim();
-  const hash = argon2id(key, salt, {
+  const hash = await runArgon2id(key, salt, {
     dkLen: ARGON2_PARAMS.dkLen,
     t: ARGON2_PARAMS.t,
     m: ARGON2_PARAMS.m,
@@ -48,10 +49,13 @@ export interface MasterPasswordHashes {
  * `masterKey` decrypts the symmetric key locally; `masterPasswordHash` proves
  * knowledge of the password to the server when reading `node_permissions`.
  */
-export function createMasterPasswordHash(password: string, teamId: string): MasterPasswordHashes {
-  const masterKey = deriveMasterKey(password, teamId);
+export async function createMasterPasswordHash(
+  password: string,
+  teamId: string,
+): Promise<MasterPasswordHashes> {
+  const masterKey = await deriveMasterKey(password, teamId);
   const masterPasswordHash = bytesToHex(
-    argon2id(masterKey, password.trim(), {
+    await runArgon2id(masterKey, password.trim(), {
       dkLen: ARGON2_PARAMS.dkLen,
       t: ARGON2_PARAMS.t,
       m: ARGON2_PARAMS.m,

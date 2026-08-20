@@ -97,10 +97,9 @@ export class Transactions {
    * and concurrent calls for one wallet share a single derivation. Call
    * {@link forgetSend} first to re-derive after credentials rotate.
    *
-   * **Blocks the event loop.** Argon2id is synchronous and CPU-bound
-   * (m=64 MiB, t=3, p=4); this method is `async` because of the API calls, not
-   * because the key derivation yields. Prepare during startup, not while
-   * serving requests.
+   * Argon2id is CPU-bound (m=64 MiB, t=3, p=4), but runs on a shared worker
+   * thread so it does not block the event loop. Preparing ahead of time still
+   * avoids that work on the first payment request.
    */
   async prepareSend(params: PrepareSendParams): Promise<void> {
     const { walletId } = params;
@@ -283,7 +282,7 @@ export class Transactions {
       throw new PaymentSendError('A team password is required to send from a live wallet.');
     }
     const teamId = params.teamId ?? walletCtx.team_id;
-    const { masterKey, masterPasswordHash } = createMasterPasswordHash(password, teamId);
+    const { masterKey, masterPasswordHash } = await createMasterPasswordHash(password, teamId);
 
     // 3. Resolve the node + its credentials — node_permissions is gated on the
     //    password hash, so a wrong password is rejected here before any payment.

@@ -13,8 +13,8 @@ import { nip44Encrypt } from './nip44.js';
 const SYMMETRIC_KEY = bytesToHex(new Uint8Array(64).map((_, i) => (i * 7 + 3) & 0xff));
 const MACAROON = '0201036c6e640224030a1077656c636f6d652d746f2d616d626f7373';
 
-function buildFixture(password: string, teamId: string) {
-  const masterKey = deriveMasterKey(password, teamId);
+async function buildFixture(password: string, teamId: string) {
+  const masterKey = await deriveMasterKey(password, teamId);
   return {
     encryptedSymmetricKey: nip44Encrypt(SYMMETRIC_KEY, masterKey),
     encryptedMacaroon: nip44Encrypt(MACAROON, SYMMETRIC_KEY),
@@ -37,30 +37,34 @@ describe('argon2id (KDF)', () => {
     assert.equal(tag, '0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659');
   });
 
-  it('derives a stable 32-byte master key (regression lock)', () => {
-    const key = deriveMasterKey('correct horse', 'Team-XYZ');
+  it('derives a stable 32-byte master key (regression lock)', async () => {
+    const key = await deriveMasterKey('correct horse', 'Team-XYZ');
     assert.equal(hexToBytes(key).length, 32);
     assert.equal(key, 'f63aa9f891f1708717a8a77e3d50f71d5230013d96957c239959689dda858265');
   });
 
-  it('treats the team id as a trimmed, lowercased salt', () => {
-    assert.equal(deriveMasterKey('pw', 'Team-XYZ'), deriveMasterKey('pw', '  team-xyz  '));
+  it('treats the team id as a trimmed, lowercased salt', async () => {
+    const [a, b] = await Promise.all([
+      deriveMasterKey('pw', 'Team-XYZ'),
+      deriveMasterKey('pw', '  team-xyz  '),
+    ]);
+    assert.equal(a, b);
   });
 });
 
 describe('decryptAdminMacaroon', () => {
-  it('recovers the macaroon through the two-layer envelope', () => {
+  it('recovers the macaroon through the two-layer envelope', async () => {
     const password = 'hunter2';
     const teamId = '11111111-1111-1111-1111-111111111111';
-    const fixture = buildFixture(password, teamId);
-    const result = decryptAdminMacaroon({ password, teamId, ...fixture });
+    const fixture = await buildFixture(password, teamId);
+    const result = await decryptAdminMacaroon({ password, teamId, ...fixture });
     assert.equal(result, MACAROON);
   });
 
-  it('throws DecryptionError on a wrong password', () => {
+  it('throws DecryptionError on a wrong password', async () => {
     const teamId = '11111111-1111-1111-1111-111111111111';
-    const fixture = buildFixture('hunter2', teamId);
-    assert.throws(
+    const fixture = await buildFixture('hunter2', teamId);
+    await assert.rejects(
       () => decryptAdminMacaroon({ password: 'wrong', teamId, ...fixture }),
       DecryptionError,
     );

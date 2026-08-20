@@ -180,10 +180,9 @@ Three things to plan around:
 - **Drop the `password` from prepared sends.** It is what makes them fast: a
   `send` that carries a password derives from scratch every time, prepared or
   not. Keep passing it only where you have not prepared the wallet.
-- **Argon2id blocks the event loop.** It is synchronous CPU work; `await` does
-  not make it yield. Prepare during startup or a warm-up hook, never inside a
-  request handler. The constructor `send` option starts it in the background but
-  the block still happens — just early, while you have no traffic.
+- **Argon2id runs on a shared worker thread.** Its CPU work does not block the
+  event loop. Prepare during startup or a warm-up hook to avoid that latency on
+  the first payment request. The constructor `send` option starts it in the background.
 - **You are holding node admin credentials in memory** for as long as the wallet
   stays prepared, which is what makes sends fast. Call
   `payments.transactions.forgetSend(walletId)` to release them, and to pick up

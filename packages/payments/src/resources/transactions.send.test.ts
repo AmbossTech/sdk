@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { createServer, type Server, type ServerResponse } from 'node:http';
 import { afterEach, describe, it } from 'node:test';
 
+import { argon2id } from '@noble/hashes/argon2';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { GraphQLClient } from 'graphql-request';
 
-import { deriveMasterKey } from '../crypto/argon2.js';
 import { nip44Encrypt } from '../crypto/nip44.js';
 import { Transactions } from './transactions.js';
 
@@ -50,7 +50,7 @@ function fakeClient(
   createSendTransaction: object = { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' },
   walletTeamId: string = TEAM_ID,
 ): GraphQLClient {
-  const masterKey = deriveMasterKey(PASSWORD, TEAM_ID);
+  const masterKey = bytesToHex(argon2id(PASSWORD, TEAM_ID, { dkLen: 32, t: 3, m: 64000, p: 4 }));
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
   const encrypted_macaroon = nip44Encrypt(MACAROON_HEX, SYMMETRIC_KEY);
 

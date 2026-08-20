@@ -262,8 +262,9 @@ to see the error at startup.
 
 Notes:
 
-- **Argon2id blocks the event loop** while it runs; it is synchronous, CPU-bound
-  work that no amount of `await` yields on. Prepare at startup, not mid-request.
+- **Argon2id runs on a shared worker thread**, so its CPU-bound work does not
+  block the event loop. Prepare at startup to avoid its latency on the first
+  payment request.
 - Each wallet costs its own derivation, so a long `send` list takes a while.
   Entries are prepared one at a time (running them concurrently would not
   overlap anything).
