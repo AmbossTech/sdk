@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/AmbossTech/sdk/compare/payments-v1.0.3...payments-v1.1.0) (2026-08-20)
+
+
+### Features
+
+* **payments:** pre-warm the send path with prepareSend [AMB-3038] ([#42](https://github.com/AmbossTech/sdk/issues/42)) ([bd505a3](https://github.com/AmbossTech/sdk/commit/bd505a3d8acd0d2344d254d045872e7de62962be))
+
 ## [1.0.3](https://github.com/AmbossTech/sdk/compare/payments-v1.0.2...payments-v1.0.3) (2026-08-18)
 
 
