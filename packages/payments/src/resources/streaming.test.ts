@@ -150,3 +150,51 @@ describe('Wallets.watchEvents', () => {
     assert.deepEqual(events, [SAMPLE_EVENT]);
   });
 });
+
+describe('Transactions.watch — mid-stream error handling', () => {
+  it('rejects with NetworkError (unwrapped) for a malformed JSON event payload', async () => {
+    const sse = `data: {not valid json\n\n`;
+    const payments = new Payments({
+      serviceApiKey: 'amb_live_test',
+      fetch: buildFetch({ streamBody: sse }),
+    });
+
+    await assert.rejects(
+      () => collect(payments.transactions.watch('tx1')),
+      (err: unknown) =>
+        err instanceof NetworkError &&
+        err.message === 'Received malformed SSE payment event payload',
+    );
+  });
+
+  it('rejects with NetworkError when the response body stream errors after opening', async () => {
+    const encoder = new TextEncoder();
+    let pulled = false;
+    const erroringBody = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (!pulled) {
+          // First read succeeds and is consumed by parseSseStream before the
+          // second read (below) rejects — proves the error surfaces only
+          // after some events have already been yielded, not just up front.
+          pulled = true;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(SAMPLE_EVENT)}\n\n`));
+          return;
+        }
+        controller.error(new Error('connection reset'));
+      },
+    });
+    const payments = new Payments({
+      serviceApiKey: 'amb_live_test',
+      fetch: buildFetch({ streamBody: erroringBody }),
+    });
+
+    const events: PaymentEvent[] = [];
+    await assert.rejects(
+      async () => {
+        for await (const event of payments.transactions.watch('tx1')) events.push(event);
+      },
+      (err: unknown) => err instanceof NetworkError,
+    );
+    assert.deepEqual(events, [SAMPLE_EVENT]);
+  });
+});
