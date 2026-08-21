@@ -137,15 +137,16 @@ the schema.
 
 #### Examples
 
-Runnable scripts in `packages/payments/examples/` (`receive.ts`, `send.ts`) run
-against the live API with credentials from `examples/.env` (gitignored; copy
-`examples/.env.example`). `verify-webhook.mjs`/`verify-webhook.cjs` need no
-credentials (webhook verification is offline) and run in CI as
-`pnpm run test:examples`, exercising the built `dist`/`dist-cjs` output of
-both packages — the regression check for the dual build. `send.cts`/
-`receive.cts` are CJS counterparts of `send.ts`/`receive.ts` that are only
-type-checked in CI (`pnpm run typecheck:examples`), never executed, since
-running them would hit the live API the same as their `.ts` counterparts.
+Runnable scripts in `packages/payments/examples/` (`receive.ts`, `send.ts`,
+`watch.ts`) run against the live API with credentials from `examples/.env`
+(gitignored; copy `examples/.env.example`). `verify-webhook.mjs`/
+`verify-webhook.cjs` need no credentials (webhook verification is offline)
+and run in CI as `pnpm run test:examples`, exercising the built
+`dist`/`dist-cjs` output of both packages — the regression check for the
+dual build. `send.cts`/`receive.cts`/`watch.cts` are CJS counterparts of
+`send.ts`/`receive.ts`/`watch.ts` that are only type-checked in CI
+(`pnpm run typecheck:examples`), never executed, since running them would
+hit the live API the same as their `.ts` counterparts.
 
 ## Key constraints
 
