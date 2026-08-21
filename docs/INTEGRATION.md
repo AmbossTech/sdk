@@ -11,6 +11,9 @@ this single file to an AI coding agent as the spec for your integration.
 - **Send** — pay BOLT11 invoices or Lightning addresses from your wallets.
 - **Webhooks** — signed `payment.pending` / `payment.completed` /
   `payment.failed` events pushed to your endpoint.
+- **Streaming (SSE)** — a live third option when you can't expose a public
+  endpoint: `transactions.watch` / `wallets.watchEvents` stream the same
+  events over a plain `fetch`-based connection.
 - **Sandbox environments** — test the full flow with no real money and no
   Lightning node.
 
@@ -98,7 +101,7 @@ transaction.payment_request; // BOLT11 invoice — show this to the payer (QR/li
 transaction.payment_hash; // correlate with the webhook event later
 ```
 
-Do not poll for settlement — consume the `payment.completed` webhook (Step 5).
+Do not poll for settlement — consume the `payment.completed` webhook (Step 5) or stream live status (Step 6).
 
 ## Step 4 — Send a payment
 
@@ -292,6 +295,41 @@ Verification failures throw `WebhookVerificationError` with a typed `code`
 (`signature_mismatch`, `timestamp_out_of_tolerance`, ...) — see the
 [package README](../packages/payments/README.md#webhook-error-codes) for the
 full table.
+
+## Step 6 — Or stream live status (SSE)
+
+Webhooks require a publicly reachable endpoint. If you don't want to stand one
+up — or don't want to poll for settlement either — `transactions.watch` and
+`wallets.watchEvents` give you a live third option: a plain `fetch`-based SSE
+connection that yields the same `PaymentEvent`s a webhook would push, opened
+directly from your process.
+
+```ts
+for await (const event of payments.transactions.watch(transaction.id)) {
+  if (event.event_type === 'payment.completed') {
+    // fulfill the order; correlate via event.data.payment_details.payment_hash
+  }
+}
+```
+
+The transaction stream ends on its own once the transaction reaches a
+terminal status (`COMPLETED` / `FAILED` / `EXPIRED`), or after a 30-minute max
+stream lifetime — whichever comes first. `wallets.watchEvents(walletId)` is
+the wallet-scoped counterpart: since a wallet has no terminal state, that
+stream stays open for the full 30 minutes (or until the connection drops),
+observing every transaction on the wallet. Reconnect by calling either method
+again — it mints a fresh stream token internally, no manual auth handling
+required.
+
+```ts
+for await (const event of payments.wallets.watchEvents(walletId)) {
+  console.log(event.event_type, event.data.status);
+}
+```
+
+Pass `{ signal }` to abort early. Errors follow the same pattern as every
+other call: `ApiError` before the stream opens (bad/expired token, unknown
+id), `NetworkError` for a transport failure or an aborted signal.
 
 ## Error handling
 
