@@ -6,6 +6,8 @@ import { argon2id } from '@noble/hashes/argon2';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { GraphQLClient } from 'graphql-request';
 
+import type { ResolvedClientConfig } from '@ambosstech/core';
+
 import { nip44Encrypt } from '../crypto/nip44.js';
 import { Transactions } from './transactions.js';
 
@@ -13,6 +15,15 @@ const PASSWORD = 'hunter2-pw'; // >= 8 chars: Argon2 salts (the password, in the
 const TEAM_ID = '11111111-1111-1111-1111-111111111111';
 const MACAROON_HEX = '0201036c6e6402240a';
 const SYMMETRIC_KEY = bytesToHex(new Uint8Array(64).map((_, i) => (i * 5 + 1) & 0xff));
+
+/** `Transactions` only needs this for `watch()`, which none of these send() tests exercise. */
+const FAKE_CONFIG: ResolvedClientConfig = {
+  apiKey: undefined,
+  serviceApiKey: undefined,
+  baseUrl: 'https://rails.amboss.tech/graphql',
+  fetch,
+  timeoutMs: 30_000,
+};
 
 let server: Server | undefined;
 let lastBody: unknown;
@@ -138,7 +149,7 @@ async function prepareThenFailWrongPassword(): Promise<{
     { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
   ]);
   const { client, ops } = withCallLog(fakeClient(host));
-  const transactions = new Transactions(client);
+  const transactions = new Transactions(client, FAKE_CONFIG);
 
   await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
   ops.length = 0;
@@ -161,7 +172,7 @@ describe('Transactions.send', () => {
       { result: { status: 'IN_FLIGHT' } },
       { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
     ]);
-    const transactions = new Transactions(fakeClient(host));
+    const transactions = new Transactions(fakeClient(host), FAKE_CONFIG);
 
     const statuses: string[] = [];
     const result = await transactions.send({
@@ -182,7 +193,7 @@ describe('Transactions.send', () => {
   it('creates a sandbox send without a password and returns payment: null', async () => {
     // No node should be contacted for sandbox — point at an unroutable host
     // so any accidental node call would fail the test.
-    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'), FAKE_CONFIG);
 
     const result = await transactions.send({
       walletId: 'w1',
@@ -197,7 +208,7 @@ describe('Transactions.send', () => {
     const host = await startNode([
       { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
     ]);
-    const transactions = new Transactions(fakeClient(host));
+    const transactions = new Transactions(fakeClient(host), FAKE_CONFIG);
 
     const result = await transactions.send({
       walletId: 'w1',
@@ -212,7 +223,7 @@ describe('Transactions.send', () => {
 
   it('surfaces a wrong password as a DecryptionError before paying', async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
-    const transactions = new Transactions(fakeClient(host));
+    const transactions = new Transactions(fakeClient(host), FAKE_CONFIG);
 
     await assert.rejects(
       transactions.send({
@@ -234,6 +245,7 @@ describe('Transactions.send', () => {
         fee: '3',
         payment_request: 'lnbc1xyz',
       }),
+      FAKE_CONFIG,
     );
 
     const result = await transactions.send({
@@ -256,6 +268,7 @@ describe('Transactions.send', () => {
     ]);
     const transactions = new Transactions(
       fakeClient(host, 'LIVE', { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' }),
+      FAKE_CONFIG,
     );
 
     const result = await transactions.send({
@@ -276,7 +289,7 @@ describe('Transactions.prepareSend', () => {
       { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
     ]);
     const { client, ops } = withCallLog(fakeClient(host));
-    const transactions = new Transactions(client);
+    const transactions = new Transactions(client, FAKE_CONFIG);
 
     await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
     assert.equal(countOf(ops, 'GetWalletSendContext'), 1);
@@ -298,7 +311,7 @@ describe('Transactions.prepareSend', () => {
   });
 
   it('reports isSendReady false while preparing and true once resolved', async () => {
-    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'));
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'), FAKE_CONFIG);
 
     const pending = transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
     assert.equal(transactions.isSendReady('w1'), false, 'not ready while Argon2 is still running');
@@ -321,7 +334,7 @@ describe('Transactions.prepareSend', () => {
   });
 
   it('marks a sandbox wallet ready without a password', async () => {
-    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'), FAKE_CONFIG);
 
     await transactions.prepareSend({ walletId: 'w1' });
 
@@ -353,7 +366,7 @@ describe('Transactions.prepareSend', () => {
       { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
     ]);
     const { client, ops } = withCallLog(fakeClient(host));
-    const transactions = new Transactions(client);
+    const transactions = new Transactions(client, FAKE_CONFIG);
 
     await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
     ops.length = 0;
@@ -373,7 +386,7 @@ describe('Transactions.prepareSend', () => {
 
   it('keeps a concurrent successful preparation when another send has bad credentials', async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
-    const transactions = new Transactions(fakeClient(host));
+    const transactions = new Transactions(fakeClient(host), FAKE_CONFIG);
 
     // Both derivations are in flight at once: the good one is started first,
     // then the bad one, which must not displace it.
@@ -400,7 +413,7 @@ describe('Transactions.prepareSend', () => {
       { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
     ]);
     const { client, ops } = withCallLog(fakeClient(host, 'LIVE', undefined, WALLET_TEAM_ID));
-    const transactions = new Transactions(client);
+    const transactions = new Transactions(client, FAKE_CONFIG);
 
     // Only the override's salt decrypts this wallet, so preparing succeeding
     // at all proves the override was used.

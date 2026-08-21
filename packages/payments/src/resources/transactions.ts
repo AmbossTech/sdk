@@ -1,5 +1,7 @@
 import type { GraphQLClient } from 'graphql-request';
 
+import type { ResolvedClientConfig } from '@ambosstech/core';
+
 import { createMasterPasswordHash } from '../crypto/argon2.js';
 import { decryptAdminMacaroonWithMasterKey } from '../crypto/decryptAdminMacaroon.js';
 import { PaymentSendError } from '../errors.js';
@@ -12,8 +14,11 @@ import {
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
 import type { PaymentLifecycleStatus } from '../node/types.js';
+import type { PaymentEvent } from '../types/webhooks.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
+import { watchPaymentEventStream } from './streaming.js';
+import type { WatchStreamOptions } from './streaming.types.js';
 import type {
   PreparedSend,
   PrepareSendParams,
@@ -68,6 +73,8 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
+  readonly #graphqlClient: GraphQLClient;
+  readonly #config: ResolvedClientConfig;
   /**
    * Macaroons prepared by {@link prepareSend}, keyed by wallet id. Only a
    * *successful* preparation lands here, and only `prepareSend` ever writes:
@@ -79,8 +86,10 @@ export class Transactions {
   /** Preparations still running, so concurrent `prepareSend` calls share one Argon2 pass. */
   readonly #pending = new Map<string, Promise<PreparedSend>>();
 
-  constructor(graphqlClient: GraphQLClient) {
+  constructor(graphqlClient: GraphQLClient, config: ResolvedClientConfig) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
+    this.#graphqlClient = graphqlClient;
+    this.#config = config;
   }
 
   /**
@@ -249,6 +258,36 @@ export class Transactions {
         });
 
     return { transaction, payment };
+  }
+
+  /**
+   * Streams live `PaymentEvent`s for a single transaction over SSE — the
+   * live-status alternative to configuring a webhook endpoint. Mints a
+   * short-lived stream token via GraphQL, then reads
+   * `GET /payments/stream/transactions/:id` as `text/event-stream` (a plain
+   * `fetch`, not `EventSource`, so this works in Node and browsers alike).
+   *
+   * Per the SSE design doc: the first event is a snapshot of the transaction's
+   * current state; the stream then emits one event per status transition and
+   * closes once the transaction reaches a terminal status
+   * (`COMPLETED`/`FAILED`/`EXPIRED`) or the token's max stream lifetime (30
+   * minutes) elapses — the returned iterable simply ends. Call `watch` again
+   * (which mints a fresh token) to reconnect.
+   *
+   * Rejects with `ApiError` (401 missing/invalid token, 404 unknown
+   * transaction) before the stream opens, or `NetworkError` for a transport
+   * failure or an aborted `options.signal` — the same error types every other
+   * resource method throws.
+   */
+  watch(id: string, options?: WatchStreamOptions): AsyncIterable<PaymentEvent> {
+    return watchPaymentEventStream(
+      this.#graphqlClient,
+      this.#config,
+      'TRANSACTION',
+      `/payments/stream/transactions/${id}`,
+      id,
+      options,
+    );
   }
 
   /**

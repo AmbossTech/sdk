@@ -69,13 +69,13 @@ export class Payments extends AmbossClient {
 
   get wallets(): Wallets {
     this.requireServiceApiKey('payments.wallets');
-    this.#wallets ??= new Wallets(this.graphqlClient);
+    this.#wallets ??= new Wallets(this.graphqlClient, this.config);
     return this.#wallets;
   }
 
   get transactions(): Transactions {
     this.requireServiceApiKey('payments.transactions');
-    this.#transactions ??= new Transactions(this.graphqlClient);
+    this.#transactions ??= new Transactions(this.graphqlClient, this.config);
     return this.#transactions;
   }
 
