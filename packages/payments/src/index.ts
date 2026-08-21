@@ -18,6 +18,7 @@ export type {
   SendProgress,
   SendResult,
 } from './resources/transactions.types.js';
+export type { WatchStreamOptions } from './resources/streaming.types.js';
 export type { NodePaymentResult, PaymentLifecycleStatus } from './node/types.js';
 
 // These methods' param/result types (e.g. `CreateReceiveTransactionInput`,
