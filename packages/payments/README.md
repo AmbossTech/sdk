@@ -282,6 +282,43 @@ Notes:
 - Sandbox wallets prepare too (no password, nothing to decrypt) — it just caches
   the fact that no node payment is needed.
 
+### Streaming
+
+`transactions.watch(id)` and `wallets.watchEvents(id)` stream live `PaymentEvent`s
+over SSE — a live alternative to webhooks when polling for status or exposing a
+public endpoint isn't an option. Both mint a short-lived stream token via
+GraphQL, then read `GET /payments/stream/{transactions,wallets}/:id` as
+`text/event-stream` using plain `fetch` (not `EventSource`), so they work in
+Node and browsers alike.
+
+```ts
+for await (const event of payments.transactions.watch(transactionId)) {
+  console.log(event.event_type, event.data.status);
+}
+```
+
+Each yielded `event` is a `PaymentEvent` — the same shape delivered to a
+verified webhook (see [Event shape](../../docs/INTEGRATION.md#event-shape)).
+
+`transactions.watch` ends (the loop exits normally) once the transaction
+reaches a terminal status (`COMPLETED` / `FAILED` / `EXPIRED`) or the stream's
+30-minute max lifetime elapses. `wallets.watchEvents` has no terminal
+state — it stays open until the 30-minute max lifetime elapses or the
+connection drops (the stream token itself only gates the initial handshake,
+not how long the connection stays open):
+
+```ts
+for await (const event of payments.wallets.watchEvents(walletId)) {
+  console.log(event.wallet_id, event.event_type);
+}
+```
+
+Call either method again (it mints a fresh token) to reconnect. Both accept an
+optional `{ signal }` to abort the connection. Rejects with `ApiError` before
+the stream opens (401 missing/invalid token, 404 unknown id) or `NetworkError`
+for a transport failure or an aborted signal — the same error types every
+other resource method throws.
+
 ## Examples
 
 Runnable scripts live in [`examples/`](./examples). They run against a live API
