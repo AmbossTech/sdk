@@ -7,6 +7,8 @@ import {
   getSdk,
   type CreateReceiveTransactionInput,
   type CreateSendTransactionInput,
+  type FindManyTransactionsFieldsFragment,
+  type ListTransactionsInput,
   type PaymentsTransactionFieldsFragment,
 } from '../generated/sdk.js';
 import { sendAssetPayment } from '../node/lit.js';
@@ -143,6 +145,16 @@ export class Transactions {
     // Dropping the in-flight preparation too, so its result cannot land in
     // #prepared after the caller asked for the macaroon to be released.
     this.#pending.delete(walletId);
+  }
+
+  async findOne(id: string): Promise<PaymentsTransactionFieldsFragment> {
+    const res = await this.#sdk.GetTransaction({ id });
+    return res.payment.transaction.find_one;
+  }
+
+  async findMany(input: ListTransactionsInput): Promise<FindManyTransactionsFieldsFragment> {
+    const res = await this.#sdk.ListTransactions({ input });
+    return res.payment.transaction.find_many;
   }
 
   async createReceive(

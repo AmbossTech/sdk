@@ -71,7 +71,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
 | --------------- | -------------- | ------------------------------------------------------------- |
 | `.environments` | `Environments` | `list()`, `get(id)`, `create(input)`, `delete(id)`            |
 | `.wallets`      | `Wallets`      | `list({ environmentId })`, `get(id)`, `create(input)`, `delete(id)` |
-| `.transactions` | `Transactions` | `createReceive(input)`, `send(params)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
+| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
 | `.webhooks`     | `Webhooks`     | `verify(input)` — does NOT require any API key                |
 
 `Payments.webhooks` is also a static reference to `Webhooks` for stateless use.
