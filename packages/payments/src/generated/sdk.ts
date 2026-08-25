@@ -1587,6 +1587,24 @@ export type DeleteEnvironmentMutation = { payment: { environment: { delete: bool
 
 export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
 
+export type SimplePaymentsTransactionFieldsFragment = { id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
+
+export type FindManyTransactionsFieldsFragment = { total_count: number, list: Array<{ id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } }>, pagination: { limit: number, offset: number } };
+
+export type GetTransactionQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type GetTransactionQuery = { payment: { transaction: { find_one: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
+
+export type ListTransactionsQueryVariables = Exact<{
+  input: ListTransactionsInput;
+}>;
+
+
+export type ListTransactionsQuery = { payment: { transaction: { find_many: { total_count: number, list: Array<{ id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } }>, pagination: { limit: number, offset: number } } } } };
+
 export type CreateReceiveTransactionMutationVariables = Exact<{
   input: CreateReceiveTransactionInput;
 }>;
@@ -1689,6 +1707,42 @@ export const PaymentsTransactionFieldsFragmentDoc = `
   updated_at
 }
     `;
+export const SimplePaymentsTransactionFieldsFragmentDoc = `
+    fragment SimplePaymentsTransactionFields on SimplePaymentsTransaction {
+  id
+  wallet_id
+  direction
+  status
+  amount {
+    id
+    display_amount
+    full_amount
+  }
+  asset {
+    id
+    symbol
+    type
+    precision
+  }
+  fee
+  description
+  settled_at
+  created_at
+  updated_at
+}
+    `;
+export const FindManyTransactionsFieldsFragmentDoc = `
+    fragment FindManyTransactionsFields on FindManyTransactions {
+  list {
+    ...SimplePaymentsTransactionFields
+  }
+  pagination {
+    limit
+    offset
+  }
+  total_count
+}
+    ${SimplePaymentsTransactionFieldsFragmentDoc}`;
 export const PaymentsEnvironmentFieldsFragmentDoc = `
     fragment PaymentsEnvironmentFields on PaymentsEnvironment {
   id
@@ -1805,6 +1859,28 @@ export const DeleteEnvironmentDocument = `
   }
 }
     `;
+export const GetTransactionDocument = `
+    query GetTransaction($id: String!) {
+  payment {
+    transaction {
+      find_one(id: $id) {
+        ...PaymentsTransactionFields
+      }
+    }
+  }
+}
+    ${PaymentsTransactionFieldsFragmentDoc}`;
+export const ListTransactionsDocument = `
+    query ListTransactions($input: ListTransactionsInput!) {
+  payment {
+    transaction {
+      find_many(input: $input) {
+        ...FindManyTransactionsFields
+      }
+    }
+  }
+}
+    ${FindManyTransactionsFieldsFragmentDoc}`;
 export const CreateReceiveTransactionDocument = `
     mutation CreateReceiveTransaction($input: CreateReceiveTransactionInput!) {
   payment {
@@ -1946,6 +2022,12 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     DeleteEnvironment(variables: DeleteEnvironmentMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<DeleteEnvironmentMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<DeleteEnvironmentMutation>({ document: DeleteEnvironmentDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'DeleteEnvironment', 'mutation', variables);
+    },
+    GetTransaction(variables: GetTransactionQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTransactionQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetTransactionQuery>({ document: GetTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTransaction', 'query', variables);
+    },
+    ListTransactions(variables: ListTransactionsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<ListTransactionsQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<ListTransactionsQuery>({ document: ListTransactionsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'ListTransactions', 'query', variables);
     },
     CreateReceiveTransaction(variables: CreateReceiveTransactionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<CreateReceiveTransactionMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateReceiveTransactionMutation>({ document: CreateReceiveTransactionDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'CreateReceiveTransaction', 'mutation', variables);

@@ -28,6 +28,60 @@ fragment PaymentsTransactionFields on PaymentsTransaction {
   updated_at
 }
 
+fragment SimplePaymentsTransactionFields on SimplePaymentsTransaction {
+  id
+  wallet_id
+  direction
+  status
+  amount {
+    id
+    display_amount
+    full_amount
+  }
+  asset {
+    id
+    symbol
+    type
+    precision
+  }
+  fee
+  description
+  settled_at
+  created_at
+  updated_at
+}
+
+fragment FindManyTransactionsFields on FindManyTransactions {
+  list {
+    ...SimplePaymentsTransactionFields
+  }
+  pagination {
+    limit
+    offset
+  }
+  total_count
+}
+
+query GetTransaction($id: String!) {
+  payment {
+    transaction {
+      find_one(id: $id) {
+        ...PaymentsTransactionFields
+      }
+    }
+  }
+}
+
+query ListTransactions($input: ListTransactionsInput!) {
+  payment {
+    transaction {
+      find_many(input: $input) {
+        ...FindManyTransactionsFields
+      }
+    }
+  }
+}
+
 mutation CreateReceiveTransaction($input: CreateReceiveTransactionInput!) {
   payment {
     transaction {

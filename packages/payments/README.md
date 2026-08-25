@@ -160,6 +160,19 @@ await payments.wallets.delete(id);
 
 ### Transactions
 
+#### Finding transactions
+
+```ts
+await payments.transactions.findOne(id); // full transaction record
+await payments.transactions.findMany({ wallet_id: walletId }); // { list, pagination, total_count }
+```
+
+`findMany` accepts the same input as the backend's transaction list query —
+`environment_id`, `wallet_id`, `page: { limit, offset }`, and
+`filter: { date_range, direction, status }`. Each item in `list` is a trimmed
+record (no `payment_hash` / `payment_request` / `error` / etc.); use `findOne`
+for the full transaction.
+
 #### Receiving
 
 `transactions.createReceive` generates a Lightning invoice for a wallet. Unlike

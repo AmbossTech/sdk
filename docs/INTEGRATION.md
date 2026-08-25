@@ -189,6 +189,22 @@ Three things to plan around:
   rotated node credentials — there is no expiry. The Argon2 master key is never
   cached; only the one wallet's macaroon is.
 
+### Looking up transactions
+
+```ts
+const transaction = await payments.transactions.findOne(transactionId);
+
+const { list, pagination, total_count } = await payments.transactions.findMany({
+  wallet_id: walletId,
+  filter: { status: 'COMPLETED', direction: 'SEND' }, // optional
+  page: { limit: 20, offset: 0 }, // optional
+});
+```
+
+`findOne` returns the full transaction record. `findMany` returns trimmed
+records (no `payment_hash` / `payment_request` / `error`) — use `findOne` when
+you need those fields for one transaction.
+
 ## Step 5 — Consume webhooks
 
 Amboss signs every webhook: HMAC-SHA256 over `${timestamp}.${rawBody}`, sent
