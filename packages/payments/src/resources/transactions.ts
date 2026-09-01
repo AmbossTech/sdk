@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import type { GraphQLClient } from 'graphql-request';
 
 import { createMasterPasswordHash } from '../crypto/argon2.js';
@@ -15,7 +13,7 @@ import {
 } from '../generated/sdk.js';
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
-import type { PaymentLifecycleStatus } from '../node/types.js';
+import type { NodePaymentResult, PaymentLifecycleStatus } from '../node/types.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type {
@@ -229,47 +227,24 @@ export class Transactions {
     }
 
     // 4. Execute the payment against the node.
-    const onStatus = onUpdate
-      ? (status: PaymentLifecycleStatus) => onUpdate({ status })
-      : undefined;
-    const common = {
-      restHost: prepared.restHost,
-      macaroon: prepared.macaroon,
-      tlsCert: prepared.tlsCert,
-      onUpdate: onStatus,
+    const payment = await this.#payAtNode(prepared, transaction.payment_request, {
+      amountSats: lndAmountSats(destination),
+      timeoutSeconds,
+      onUpdate,
       signal,
-    };
-
-    const payment = prepared.isAsset
-      ? await sendAssetPayment({
-          ...common,
-          body: {
-            payment_request: {
-              payment_request: transaction.payment_request,
-              fee_limit_sat: FEE_LIMIT_SATS,
-              timeout_seconds: timeoutSeconds,
-            },
-            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
-          },
-        })
-      : await sendLndPayment({
-          ...common,
-          body: {
-            payment_request: transaction.payment_request,
-            ...(lndAmountSats(destination) ? { amt: lndAmountSats(destination) } : {}),
-            fee_limit_sat: FEE_LIMIT_SATS,
-            timeout_seconds: timeoutSeconds,
-          },
-        });
+    });
 
     return { transaction, payment };
   }
 
   /**
-   * Retries a `FAILED` send **client-side**: looks up the transaction, checks
-   * it is actually retryable, then resends its own `payment_request` through
-   * {@link send} with a fresh idempotency key — no dedicated server-side
-   * retry mutation involved, so this works against any deployed schema.
+   * Retries a `FAILED` send **without minting a new invoice**: looks up the
+   * transaction, checks it is actually retryable, then pays its own
+   * `payment_request` directly against the node — the same node-execution
+   * logic {@link send}'s step 4 uses, but skipping `send()`'s `create_send`
+   * step entirely. Calling `create_send` again would persist a second
+   * `payments_transaction` row for the same invoice instead of letting the
+   * existing failed row's status update, so this never touches it.
    *
    * Throws {@link PaymentSendError} if the transaction is not in `FAILED`
    * status, its invoice has expired, or it has no `payment_request` to retry.
@@ -296,14 +271,15 @@ export class Transactions {
       throw new PaymentSendError(`Transaction ${paymentId} has no payment_request to retry.`);
     }
 
-    return this.send({
-      walletId: transaction.wallet_id,
-      destination: {
-        bolt11: transaction.payment_request,
-        ...(transaction.amount_sats ? { amountSats: transaction.amount_sats } : {}),
-      },
-      idempotencyKey: randomUUID(),
+    const prepared = await this.#sendContext({ walletId: transaction.wallet_id });
+    if (prepared.kind === 'sandbox') return { transaction, payment: null };
+
+    const payment = await this.#payAtNode(prepared, transaction.payment_request, {
+      amountSats: transaction.amount_sats ?? undefined,
+      timeoutSeconds: DEFAULT_TIMEOUT_SECONDS,
     });
+
+    return { transaction, payment };
   }
 
   /**
@@ -375,5 +351,57 @@ export class Transactions {
       isAsset,
       ...(groupKeyHex ? { groupKeyBase64: hexGroupKeyToBase64(groupKeyHex) } : {}),
     };
+  }
+
+  /**
+   * Pays an already-minted `payment_request` against the node — LND directly
+   * for base-asset wallets, litd for Taproot Asset wallets. Shared by
+   * `send()`'s step 4 (paying the invoice `create_send` just minted) and
+   * `retryPayment()` (paying a `FAILED` transaction's existing invoice again),
+   * so the macaroon/credential handling and node-call shape live in one place.
+   */
+  async #payAtNode(
+    prepared: Extract<PreparedSend, { kind: 'node' }>,
+    paymentRequest: string,
+    options: {
+      amountSats?: string;
+      timeoutSeconds: number;
+      onUpdate?: SendParams['onUpdate'];
+      signal?: AbortSignal;
+    },
+  ): Promise<NodePaymentResult> {
+    const { amountSats, timeoutSeconds, onUpdate, signal } = options;
+    const onStatus = onUpdate
+      ? (status: PaymentLifecycleStatus) => onUpdate({ status })
+      : undefined;
+    const common = {
+      restHost: prepared.restHost,
+      macaroon: prepared.macaroon,
+      tlsCert: prepared.tlsCert,
+      onUpdate: onStatus,
+      signal,
+    };
+
+    return prepared.isAsset
+      ? sendAssetPayment({
+          ...common,
+          body: {
+            payment_request: {
+              payment_request: paymentRequest,
+              fee_limit_sat: FEE_LIMIT_SATS,
+              timeout_seconds: timeoutSeconds,
+            },
+            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
+          },
+        })
+      : sendLndPayment({
+          ...common,
+          body: {
+            payment_request: paymentRequest,
+            ...(amountSats ? { amt: amountSats } : {}),
+            fee_limit_sat: FEE_LIMIT_SATS,
+            timeout_seconds: timeoutSeconds,
+          },
+        });
   }
 }

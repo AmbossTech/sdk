@@ -33,7 +33,12 @@ async function startNode(lines: object[]): Promise<string> {
   return `http://127.0.0.1:${addr.port}`;
 }
 
-/** Fake GraphQLClient that answers the operations prepareSend()/retryPayment() issue. */
+/**
+ * Fake GraphQLClient that answers the operations `prepareSend()`/`retryPayment()`
+ * issue. `retryPayment()` must never call `CreateSendTransaction` (`create_send`)
+ * — retrying re-pays the existing invoice instead of minting/persisting a new
+ * transaction row, so any request for that document is a bug.
+ */
 function fakeClient(
   restHost: string,
   environmentType: 'LIVE' | 'SANDBOX' = 'LIVE',
@@ -93,9 +98,7 @@ function fakeClient(
       };
     }
     if (document.includes('CreateSendTransaction')) {
-      return {
-        payment: { transaction: { create_send: findOneTransaction } },
-      };
+      throw new Error('retryPayment must not call create_send');
     }
     throw new Error(`unexpected document: ${document.slice(0, 40)}`);
   };
@@ -104,7 +107,7 @@ function fakeClient(
 }
 
 describe('Transactions.retryPayment', () => {
-  it("resends the FAILED transaction's own payment_request via create_send, using a prepared macaroon", async () => {
+  it("pays the FAILED transaction's own payment_request directly at the node, without calling create_send", async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
     const transactions = new Transactions(fakeClient(host));
 

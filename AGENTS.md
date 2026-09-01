@@ -88,10 +88,13 @@ Resource getters are lazy and call `requireServiceApiKey`:
   driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
-- `retryPayment(paymentId)` retries a `FAILED` send **client-side**: looks
-  up the transaction, validates it is retryable (status `FAILED`, invoice not
-  expired), then resends its own `payment_request` through `send` with a
-  fresh idempotency key — no dedicated server-side retry mutation involved.
+- `retryPayment(paymentId)` retries a `FAILED` send **without calling
+  `create_send`**: looks up the transaction, validates it is retryable
+  (status `FAILED`, invoice not expired), then pays its existing
+  `payment_request` directly against the node — reusing `send()`'s
+  node-execution step, not its `create_send` step. Calling `create_send`
+  again would persist a second `payments_transaction` row for the same
+  invoice instead of letting the existing failed row's status update.
   Throws `PaymentSendError` if the transaction isn't retryable. Takes no
   password — it reads the wallet's macaroon from the `prepareSend` cache the
   same way a password-less `send` does, and fails the same way when nothing

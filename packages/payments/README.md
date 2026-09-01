@@ -297,11 +297,13 @@ Notes:
 
 #### Retrying a failed send
 
-`transactions.retryPayment(paymentId)` retries a `FAILED` send client-side: it
-looks up the transaction, checks it is retryable (status `FAILED`, invoice not
-expired), then resends its own `payment_request` through `send` with a fresh
-idempotency key. It throws a `PaymentSendError` if the transaction isn't
-retryable.
+`transactions.retryPayment(paymentId)` retries a `FAILED` send without minting
+a new invoice: it looks up the transaction, checks it is retryable (status
+`FAILED`, invoice not expired), then pays its existing `payment_request`
+directly against the node. It never calls `create_send` — doing so would
+persist a second transaction row for the same invoice instead of letting the
+existing failed row's status update. It throws a `PaymentSendError` if the
+transaction isn't retryable.
 
 ```ts
 const { transaction, payment } = await payments.transactions.retryPayment(paymentId);
