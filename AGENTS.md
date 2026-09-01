@@ -88,13 +88,14 @@ Resource getters are lazy and call `requireServiceApiKey`:
   driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
-- `retryPayment(paymentId)` retries a `FAILED` send, reusing its stored
-  `payment_request` (no new invoice minted). Server-validated precondition:
-  a SEND transaction in `FAILED` status with an unexpired invoice. Takes no
+- `retryPayment(paymentId)` retries a `FAILED` send **client-side**: looks
+  up the transaction, validates it is retryable (status `FAILED`, invoice not
+  expired), then resends its own `payment_request` through `send` with a
+  fresh idempotency key — no dedicated server-side retry mutation involved.
+  Throws `PaymentSendError` if the transaction isn't retryable. Takes no
   password — it reads the wallet's macaroon from the `prepareSend` cache the
   same way a password-less `send` does, and fails the same way when nothing
-  is cached. Hand-authored against amboss-rails-api#577 (unmerged) — see
-  `resources/retrySend.ts`.
+  is cached.
 - `send` is split into a **prepare** step (wallet send context →
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
   Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { GraphQLClient } from 'graphql-request';
 
 import { createMasterPasswordHash } from '../crypto/argon2.js';
@@ -14,7 +16,6 @@ import {
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
 import type { PaymentLifecycleStatus } from '../node/types.js';
-import { retrySendTransaction } from './retrySend.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type {
@@ -71,7 +72,6 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
-  readonly #graphqlClient: GraphQLClient;
   /**
    * Macaroons prepared by {@link prepareSend}, keyed by wallet id. Only a
    * *successful* preparation lands here, and only `prepareSend` ever writes:
@@ -85,7 +85,6 @@ export class Transactions {
 
   constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
-    this.#graphqlClient = graphqlClient;
   }
 
   /**
@@ -267,61 +266,44 @@ export class Transactions {
   }
 
   /**
-   * Retries a `FAILED` send, reusing its stored `payment_request` — no new
-   * invoice is minted. **Precondition** (enforced server-side, not
-   * re-checked here): `paymentId` must identify a SEND transaction in
-   * `FAILED` status whose invoice has not expired; violations surface as an
-   * `ApiError` from the `retry_send` mutation.
+   * Retries a `FAILED` send **client-side**: looks up the transaction, checks
+   * it is actually retryable, then resends its own `payment_request` through
+   * {@link send} with a fresh idempotency key — no dedicated server-side
+   * retry mutation involved, so this works against any deployed schema.
    *
-   * Takes no password: it relies on {@link prepareSend} having already
-   * cached the wallet's macaroon (as it would for the original `send()` call
-   * that failed). If nothing is cached for the transaction's wallet, this
-   * fails the same way an unprepared, password-less `send()` does — a
-   * `PaymentSendError` asking for a team password via `prepareSend()` first.
+   * Throws {@link PaymentSendError} if the transaction is not in `FAILED`
+   * status, its invoice has expired, or it has no `payment_request` to retry.
    *
-   * TODO(AMB-3091): `retry_send` is hand-authored against amboss-rails-api#577
-   * (unmerged) via `./retrySend.js` — see that file's header. Once #577
-   * deploys, refresh the schema, run codegen, and delete `retrySend.ts` /
-   * `retrySend.types.ts` in favor of the generated operation.
+   * Takes no password: like a password-less {@link send}, it relies on
+   * {@link prepareSend} having already cached the wallet's macaroon (as it
+   * would for the original `send()` call that failed). If nothing is cached
+   * for the transaction's wallet, this fails the same way an unprepared,
+   * password-less `send()` does — a `PaymentSendError` asking for a team
+   * password via `prepareSend()` first.
    */
   async retryPayment(paymentId: string): Promise<SendResult> {
-    const transaction = await retrySendTransaction(this.#graphqlClient, paymentId);
+    const transaction = await this.findOne(paymentId);
 
-    const prepared = await this.#sendContext({ walletId: transaction.wallet_id });
-    if (prepared.kind === 'sandbox') return { transaction, payment: null };
-
+    if (transaction.status !== 'FAILED') {
+      throw new PaymentSendError(
+        `Transaction ${paymentId} is not retryable: status is ${transaction.status}, expected FAILED.`,
+      );
+    }
+    if (transaction.expires_at && new Date(transaction.expires_at).getTime() <= Date.now()) {
+      throw new PaymentSendError(`Transaction ${paymentId}'s invoice has expired.`);
+    }
     if (!transaction.payment_request) {
-      throw new PaymentSendError('Backend did not return a payment request.');
+      throw new PaymentSendError(`Transaction ${paymentId} has no payment_request to retry.`);
     }
 
-    const common = {
-      restHost: prepared.restHost,
-      macaroon: prepared.macaroon,
-      tlsCert: prepared.tlsCert,
-    };
-
-    const payment = prepared.isAsset
-      ? await sendAssetPayment({
-          ...common,
-          body: {
-            payment_request: {
-              payment_request: transaction.payment_request,
-              fee_limit_sat: FEE_LIMIT_SATS,
-              timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
-            },
-            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
-          },
-        })
-      : await sendLndPayment({
-          ...common,
-          body: {
-            payment_request: transaction.payment_request,
-            fee_limit_sat: FEE_LIMIT_SATS,
-            timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
-          },
-        });
-
-    return { transaction, payment };
+    return this.send({
+      walletId: transaction.wallet_id,
+      destination: {
+        bolt11: transaction.payment_request,
+        ...(transaction.amount_sats ? { amountSats: transaction.amount_sats } : {}),
+      },
+      idempotencyKey: randomUUID(),
+    });
   }
 
   /**

@@ -37,10 +37,10 @@ async function startNode(lines: object[]): Promise<string> {
 function fakeClient(
   restHost: string,
   environmentType: 'LIVE' | 'SANDBOX' = 'LIVE',
-  retrySendTransaction: object = {
+  findOneTransaction: object = {
     id: 'tx1',
     wallet_id: 'w1',
-    status: 'PENDING',
+    status: 'FAILED',
     payment_request: 'lnbc1xyz',
   },
 ): GraphQLClient {
@@ -50,6 +50,9 @@ function fakeClient(
 
   const request = async (arg: { document: string } | string): Promise<unknown> => {
     const document = typeof arg === 'string' ? arg : arg.document;
+    if (document.includes('GetTransaction')) {
+      return { payment: { transaction: { find_one: findOneTransaction } } };
+    }
     if (document.includes('GetWalletSendContext')) {
       return {
         payment: {
@@ -89,13 +92,9 @@ function fakeClient(
         },
       };
     }
-    if (document.includes('RetrySendTransaction')) {
+    if (document.includes('CreateSendTransaction')) {
       return {
-        payment: {
-          transaction: {
-            retry_send: retrySendTransaction,
-          },
-        },
+        payment: { transaction: { create_send: findOneTransaction } },
       };
     }
     throw new Error(`unexpected document: ${document.slice(0, 40)}`);
@@ -105,7 +104,7 @@ function fakeClient(
 }
 
 describe('Transactions.retryPayment', () => {
-  it('retries via retry_send and pays via the node, using a prepared macaroon', async () => {
+  it("resends the FAILED transaction's own payment_request via create_send, using a prepared macaroon", async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
     const transactions = new Transactions(fakeClient(host));
 
@@ -125,7 +124,7 @@ describe('Transactions.retryPayment', () => {
     await assert.rejects(transactions.retryPayment('tx1'), /password/);
   });
 
-  it('returns payment: null for a sandbox wallet without pre-paring anything', async () => {
+  it('returns payment: null for a sandbox wallet without preparing anything', async () => {
     const host = await startNode([]);
     const transactions = new Transactions(fakeClient(host, 'SANDBOX'));
 
@@ -133,5 +132,43 @@ describe('Transactions.retryPayment', () => {
 
     assert.equal(result.payment, null);
     assert.equal(result.transaction.id, 'tx1');
+  });
+
+  it('throws PaymentSendError when the transaction is not FAILED', async () => {
+    const host = await startNode([]);
+    const transactions = new Transactions(
+      fakeClient(host, 'LIVE', {
+        id: 'tx1',
+        wallet_id: 'w1',
+        status: 'PENDING',
+        payment_request: 'lnbc1xyz',
+      }),
+    );
+
+    await assert.rejects(transactions.retryPayment('tx1'), /not retryable/);
+  });
+
+  it('throws PaymentSendError when the invoice has expired', async () => {
+    const host = await startNode([]);
+    const transactions = new Transactions(
+      fakeClient(host, 'LIVE', {
+        id: 'tx1',
+        wallet_id: 'w1',
+        status: 'FAILED',
+        payment_request: 'lnbc1xyz',
+        expires_at: new Date(Date.now() - 60_000).toISOString(),
+      }),
+    );
+
+    await assert.rejects(transactions.retryPayment('tx1'), /expired/);
+  });
+
+  it('throws PaymentSendError when the transaction has no payment_request', async () => {
+    const host = await startNode([]);
+    const transactions = new Transactions(
+      fakeClient(host, 'LIVE', { id: 'tx1', wallet_id: 'w1', status: 'FAILED' }),
+    );
+
+    await assert.rejects(transactions.retryPayment('tx1'), /payment_request/);
   });
 });

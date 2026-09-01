@@ -297,10 +297,11 @@ Notes:
 
 #### Retrying a failed send
 
-`transactions.retryPayment(paymentId)` retries a `FAILED` send using its
-stored `payment_request` — no new invoice is minted. It only takes the
-transaction id: the API validates that the transaction is a `FAILED` send with
-an unexpired invoice, and rejects otherwise.
+`transactions.retryPayment(paymentId)` retries a `FAILED` send client-side: it
+looks up the transaction, checks it is retryable (status `FAILED`, invoice not
+expired), then resends its own `payment_request` through `send` with a fresh
+idempotency key. It throws a `PaymentSendError` if the transaction isn't
+retryable.
 
 ```ts
 const { transaction, payment } = await payments.transactions.retryPayment(paymentId);
