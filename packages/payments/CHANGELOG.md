@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/AmbossTech/sdk/compare/payments-v1.1.1...payments-v1.2.0) (2026-09-01)
+
+
+### Features
+
+* add Transactions findOne/findMany [AMB-2992] ([#49](https://github.com/AmbossTech/sdk/issues/49)) ([8947588](https://github.com/AmbossTech/sdk/commit/8947588ca1ed007625137ba0a684142fa43ee48d))
+
 ## [1.1.1](https://github.com/AmbossTech/sdk/compare/payments-v1.1.0...payments-v1.1.1) (2026-08-20)
 
 
