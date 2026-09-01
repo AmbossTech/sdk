@@ -71,7 +71,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
 | --------------- | -------------- | ------------------------------------------------------------- |
 | `.environments` | `Environments` | `list()`, `get(id)`, `create(input)`, `delete(id)`            |
 | `.wallets`      | `Wallets`      | `list({ environmentId })`, `get(id)`, `create(input)`, `delete(id)` |
-| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
+| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `retryPayment(paymentId)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
 | `.webhooks`     | `Webhooks`     | `verify(input)` — does NOT require any API key                |
 
 `Payments.webhooks` is also a static reference to `Webhooks` for stateless use.
@@ -88,6 +88,17 @@ Resource getters are lazy and call `requireServiceApiKey`:
   driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
+- `retryPayment(paymentId)` retries a `FAILED` send **without calling
+  `create_send`**: looks up the transaction, validates it is retryable
+  (status `FAILED`, invoice not expired), then pays its existing
+  `payment_request` directly against the node — reusing `send()`'s
+  node-execution step, not its `create_send` step. Calling `create_send`
+  again would persist a second `payments_transaction` row for the same
+  invoice instead of letting the existing failed row's status update.
+  Throws `PaymentSendError` if the transaction isn't retryable. Takes no
+  password — it reads the wallet's macaroon from the `prepareSend` cache the
+  same way a password-less `send` does, and fails the same way when nothing
+  is cached.
 - `send` is split into a **prepare** step (wallet send context →
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
   Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`

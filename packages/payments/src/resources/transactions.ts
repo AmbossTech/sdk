@@ -13,7 +13,7 @@ import {
 } from '../generated/sdk.js';
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
-import type { PaymentLifecycleStatus } from '../node/types.js';
+import type { NodePaymentResult, PaymentLifecycleStatus } from '../node/types.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type {
@@ -227,38 +227,57 @@ export class Transactions {
     }
 
     // 4. Execute the payment against the node.
-    const onStatus = onUpdate
-      ? (status: PaymentLifecycleStatus) => onUpdate({ status })
-      : undefined;
-    const common = {
-      restHost: prepared.restHost,
-      macaroon: prepared.macaroon,
-      tlsCert: prepared.tlsCert,
-      onUpdate: onStatus,
+    const payment = await this.#payAtNode(prepared, transaction.payment_request, {
+      amountSats: lndAmountSats(destination),
+      timeoutSeconds,
+      onUpdate,
       signal,
-    };
+    });
 
-    const payment = prepared.isAsset
-      ? await sendAssetPayment({
-          ...common,
-          body: {
-            payment_request: {
-              payment_request: transaction.payment_request,
-              fee_limit_sat: FEE_LIMIT_SATS,
-              timeout_seconds: timeoutSeconds,
-            },
-            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
-          },
-        })
-      : await sendLndPayment({
-          ...common,
-          body: {
-            payment_request: transaction.payment_request,
-            ...(lndAmountSats(destination) ? { amt: lndAmountSats(destination) } : {}),
-            fee_limit_sat: FEE_LIMIT_SATS,
-            timeout_seconds: timeoutSeconds,
-          },
-        });
+    return { transaction, payment };
+  }
+
+  /**
+   * Retries a `FAILED` send **without minting a new invoice**: looks up the
+   * transaction, checks it is actually retryable, then pays its own
+   * `payment_request` directly against the node — the same node-execution
+   * logic {@link send}'s step 4 uses, but skipping `send()`'s `create_send`
+   * step entirely. Calling `create_send` again would persist a second
+   * `payments_transaction` row for the same invoice instead of letting the
+   * existing failed row's status update, so this never touches it.
+   *
+   * Throws {@link PaymentSendError} if the transaction is not in `FAILED`
+   * status, its invoice has expired, or it has no `payment_request` to retry.
+   *
+   * Takes no password: like a password-less {@link send}, it relies on
+   * {@link prepareSend} having already cached the wallet's macaroon (as it
+   * would for the original `send()` call that failed). If nothing is cached
+   * for the transaction's wallet, this fails the same way an unprepared,
+   * password-less `send()` does — a `PaymentSendError` asking for a team
+   * password via `prepareSend()` first.
+   */
+  async retryPayment(paymentId: string): Promise<SendResult> {
+    const transaction = await this.findOne(paymentId);
+
+    if (transaction.status !== 'FAILED') {
+      throw new PaymentSendError(
+        `Transaction ${paymentId} is not retryable: status is ${transaction.status}, expected FAILED.`,
+      );
+    }
+    if (transaction.expires_at && new Date(transaction.expires_at).getTime() <= Date.now()) {
+      throw new PaymentSendError(`Transaction ${paymentId}'s invoice has expired.`);
+    }
+    if (!transaction.payment_request) {
+      throw new PaymentSendError(`Transaction ${paymentId} has no payment_request to retry.`);
+    }
+
+    const prepared = await this.#sendContext({ walletId: transaction.wallet_id });
+    if (prepared.kind === 'sandbox') return { transaction, payment: null };
+
+    const payment = await this.#payAtNode(prepared, transaction.payment_request, {
+      amountSats: transaction.amount_sats ?? undefined,
+      timeoutSeconds: DEFAULT_TIMEOUT_SECONDS,
+    });
 
     return { transaction, payment };
   }
@@ -270,7 +289,7 @@ export class Transactions {
    * sandbox wallets (no password, nothing to decrypt) still work unprepared,
    * and how an unprepared live wallet gets its "password required" error.
    */
-  #sendContext(params: SendParams): Promise<PreparedSend> {
+  #sendContext(params: PrepareSendParams): Promise<PreparedSend> {
     if (params.password !== undefined) return this.#resolveSendContext(params);
 
     const prepared = this.#prepared.get(params.walletId);
@@ -332,5 +351,57 @@ export class Transactions {
       isAsset,
       ...(groupKeyHex ? { groupKeyBase64: hexGroupKeyToBase64(groupKeyHex) } : {}),
     };
+  }
+
+  /**
+   * Pays an already-minted `payment_request` against the node — LND directly
+   * for base-asset wallets, litd for Taproot Asset wallets. Shared by
+   * `send()`'s step 4 (paying the invoice `create_send` just minted) and
+   * `retryPayment()` (paying a `FAILED` transaction's existing invoice again),
+   * so the macaroon/credential handling and node-call shape live in one place.
+   */
+  async #payAtNode(
+    prepared: Extract<PreparedSend, { kind: 'node' }>,
+    paymentRequest: string,
+    options: {
+      amountSats?: string;
+      timeoutSeconds: number;
+      onUpdate?: SendParams['onUpdate'];
+      signal?: AbortSignal;
+    },
+  ): Promise<NodePaymentResult> {
+    const { amountSats, timeoutSeconds, onUpdate, signal } = options;
+    const onStatus = onUpdate
+      ? (status: PaymentLifecycleStatus) => onUpdate({ status })
+      : undefined;
+    const common = {
+      restHost: prepared.restHost,
+      macaroon: prepared.macaroon,
+      tlsCert: prepared.tlsCert,
+      onUpdate: onStatus,
+      signal,
+    };
+
+    return prepared.isAsset
+      ? sendAssetPayment({
+          ...common,
+          body: {
+            payment_request: {
+              payment_request: paymentRequest,
+              fee_limit_sat: FEE_LIMIT_SATS,
+              timeout_seconds: timeoutSeconds,
+            },
+            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
+          },
+        })
+      : sendLndPayment({
+          ...common,
+          body: {
+            payment_request: paymentRequest,
+            ...(amountSats ? { amt: amountSats } : {}),
+            fee_limit_sat: FEE_LIMIT_SATS,
+            timeout_seconds: timeoutSeconds,
+          },
+        });
   }
 }
