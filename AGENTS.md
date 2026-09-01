@@ -71,7 +71,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
 | --------------- | -------------- | ------------------------------------------------------------- |
 | `.environments` | `Environments` | `list()`, `get(id)`, `create(input)`, `delete(id)`            |
 | `.wallets`      | `Wallets`      | `list({ environmentId })`, `get(id)`, `create(input)`, `delete(id)` |
-| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
+| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `retryPayment(paymentId)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
 | `.webhooks`     | `Webhooks`     | `verify(input)` — does NOT require any API key                |
 
 `Payments.webhooks` is also a static reference to `Webhooks` for stateless use.
@@ -88,6 +88,13 @@ Resource getters are lazy and call `requireServiceApiKey`:
   driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
+- `retryPayment(paymentId)` retries a `FAILED` send, reusing its stored
+  `payment_request` (no new invoice minted). Server-validated precondition:
+  a SEND transaction in `FAILED` status with an unexpired invoice. Takes no
+  password — it reads the wallet's macaroon from the `prepareSend` cache the
+  same way a password-less `send` does, and fails the same way when nothing
+  is cached. Hand-authored against amboss-rails-api#577 (unmerged) — see
+  `resources/retrySend.ts`.
 - `send` is split into a **prepare** step (wallet send context →
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
   Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`

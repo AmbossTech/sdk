@@ -295,6 +295,22 @@ Notes:
 - Sandbox wallets prepare too (no password, nothing to decrypt) — it just caches
   the fact that no node payment is needed.
 
+#### Retrying a failed send
+
+`transactions.retryPayment(paymentId)` retries a `FAILED` send using its
+stored `payment_request` — no new invoice is minted. It only takes the
+transaction id: the API validates that the transaction is a `FAILED` send with
+an unexpired invoice, and rejects otherwise.
+
+```ts
+const { transaction, payment } = await payments.transactions.retryPayment(paymentId);
+```
+
+It relies on a cached macaroon the same way a password-less `send` does — call
+`prepareSend({ walletId, password })` first (it usually already ran for the
+original send). Without one, it fails the same way an unprepared, password-less
+`send` would.
+
 ## Examples
 
 Runnable scripts live in [`examples/`](./examples). They run against a live API

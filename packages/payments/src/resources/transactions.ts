@@ -14,6 +14,7 @@ import {
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
 import type { PaymentLifecycleStatus } from '../node/types.js';
+import { retrySendTransaction } from './retrySend.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type {
@@ -70,6 +71,7 @@ function lndAmountSats(destination: SendDestination): string | undefined {
 
 export class Transactions {
   readonly #sdk: ReturnType<typeof getSdk>;
+  readonly #graphqlClient: GraphQLClient;
   /**
    * Macaroons prepared by {@link prepareSend}, keyed by wallet id. Only a
    * *successful* preparation lands here, and only `prepareSend` ever writes:
@@ -83,6 +85,7 @@ export class Transactions {
 
   constructor(graphqlClient: GraphQLClient) {
     this.#sdk = getSdk(graphqlClient, translateSdkErrors);
+    this.#graphqlClient = graphqlClient;
   }
 
   /**
@@ -264,13 +267,71 @@ export class Transactions {
   }
 
   /**
+   * Retries a `FAILED` send, reusing its stored `payment_request` — no new
+   * invoice is minted. **Precondition** (enforced server-side, not
+   * re-checked here): `paymentId` must identify a SEND transaction in
+   * `FAILED` status whose invoice has not expired; violations surface as an
+   * `ApiError` from the `retry_send` mutation.
+   *
+   * Takes no password: it relies on {@link prepareSend} having already
+   * cached the wallet's macaroon (as it would for the original `send()` call
+   * that failed). If nothing is cached for the transaction's wallet, this
+   * fails the same way an unprepared, password-less `send()` does — a
+   * `PaymentSendError` asking for a team password via `prepareSend()` first.
+   *
+   * TODO(AMB-3091): `retry_send` is hand-authored against amboss-rails-api#577
+   * (unmerged) via `./retrySend.js` — see that file's header. Once #577
+   * deploys, refresh the schema, run codegen, and delete `retrySend.ts` /
+   * `retrySend.types.ts` in favor of the generated operation.
+   */
+  async retryPayment(paymentId: string): Promise<SendResult> {
+    const transaction = await retrySendTransaction(this.#graphqlClient, paymentId);
+
+    const prepared = await this.#sendContext({ walletId: transaction.wallet_id });
+    if (prepared.kind === 'sandbox') return { transaction, payment: null };
+
+    if (!transaction.payment_request) {
+      throw new PaymentSendError('Backend did not return a payment request.');
+    }
+
+    const common = {
+      restHost: prepared.restHost,
+      macaroon: prepared.macaroon,
+      tlsCert: prepared.tlsCert,
+    };
+
+    const payment = prepared.isAsset
+      ? await sendAssetPayment({
+          ...common,
+          body: {
+            payment_request: {
+              payment_request: transaction.payment_request,
+              fee_limit_sat: FEE_LIMIT_SATS,
+              timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+            },
+            ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
+          },
+        })
+      : await sendLndPayment({
+          ...common,
+          body: {
+            payment_request: transaction.payment_request,
+            fee_limit_sat: FEE_LIMIT_SATS,
+            timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+          },
+        });
+
+    return { transaction, payment };
+  }
+
+  /**
    * The context `send()` will pay with. Passing a `password` means "use these
    * credentials", so it always derives; omitting one means "use what was
    * prepared", falling through to a derivation when nothing was — which is how
    * sandbox wallets (no password, nothing to decrypt) still work unprepared,
    * and how an unprepared live wallet gets its "password required" error.
    */
-  #sendContext(params: SendParams): Promise<PreparedSend> {
+  #sendContext(params: PrepareSendParams): Promise<PreparedSend> {
     if (params.password !== undefined) return this.#resolveSendContext(params);
 
     const prepared = this.#prepared.get(params.walletId);
