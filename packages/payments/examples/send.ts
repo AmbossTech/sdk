@@ -50,7 +50,7 @@ function resolveDestination(): SendDestination | null {
 
 async function main(): Promise<void> {
   const serviceApiKey = required('AMBOSS_API_KEY'); // the scoped payments service key (amb_live...)
-  const baseUrl = process.env.AMBOSS_BASE_URL; // optional; defaults to https://rails.amboss.tech/graphql
+  const baseUrl = process.env.AMBOSS_BASE_URL; // optional; defaults to https://app.amboss.tech/graphql
 
   const payments = new Payments({ serviceApiKey, ...(baseUrl ? { baseUrl } : {}) });
 

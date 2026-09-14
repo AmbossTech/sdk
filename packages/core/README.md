@@ -40,7 +40,7 @@ The pinned GraphQL schema lives at [`schema/rails.graphql`](./schema/rails.graph
 pnpm --filter @ambosstech/core run refresh-schema
 ```
 
-The endpoint defaults to `https://rails.amboss.tech/graphql`. Override with `AMBOSS_SCHEMA_URL`.
+The endpoint defaults to `https://app.amboss.tech/graphql`. Override with `AMBOSS_SCHEMA_URL`.
 
 ## License
 

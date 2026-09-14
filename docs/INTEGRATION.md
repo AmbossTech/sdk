@@ -48,7 +48,7 @@ All options:
 new Payments({
   serviceApiKey?: string, // omit for webhook-only usage
   webhookSecret?: string, // omit if you only call the API
-  baseUrl?: string,       // default: https://rails.amboss.tech/graphql
+  baseUrl?: string,       // default: https://app.amboss.tech/graphql
   fetch?: typeof fetch,   // override for tests / non-Node runtimes
   timeoutMs?: number,     // default: 30000
   send?: Array<{ walletId, password?, teamId? }>, // pre-warm sending — see Step 4

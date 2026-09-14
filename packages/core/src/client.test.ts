@@ -7,7 +7,7 @@ import { ConfigError } from './errors.js';
 describe('AmbossClient', () => {
   it('defaults baseUrl to production endpoint', () => {
     const config = AmbossClient.resolveConfig({});
-    assert.equal(config.baseUrl, 'https://rails.amboss.tech/graphql');
+    assert.equal(config.baseUrl, 'https://app.amboss.tech/graphql');
   });
 
   it('respects baseUrl override', () => {

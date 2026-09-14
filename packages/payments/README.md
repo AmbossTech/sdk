@@ -40,7 +40,7 @@ const wallets = await payments.wallets.list({ environmentId: envs[0].id });
 new Payments({
   serviceApiKey?: string,      // scoped payments key (sent as x-api-key); omit for webhook-only use
   webhookSecret?: string,      // omit if you only call the API
-  baseUrl?: string,            // default: https://rails.amboss.tech/graphql
+  baseUrl?: string,            // default: https://app.amboss.tech/graphql
   fetch?: typeof fetch,        // override for tests / non-Node runtimes
   timeoutMs?: number,          // default: 30000
   send?: Array<{ walletId: string, password?: string, teamId?: string }>, // pre-warm — see Sending

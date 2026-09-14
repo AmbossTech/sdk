@@ -9,7 +9,7 @@ import {
   type IntrospectionQuery,
 } from 'graphql';
 
-const SCHEMA_ENDPOINT = process.env.AMBOSS_SCHEMA_URL ?? 'https://rails.amboss.tech/graphql';
+const SCHEMA_ENDPOINT = process.env.AMBOSS_SCHEMA_URL ?? 'https://app.amboss.tech/graphql';
 const OUTPUT_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '..',
