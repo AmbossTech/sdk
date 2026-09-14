@@ -27,7 +27,7 @@ pnpm clean                  # rm dist in all packages
 # Per-package (run from repo root)
 pnpm --filter @ambosstech/core run build
 pnpm --filter @ambosstech/payments run codegen    # regenerate GraphQL SDK from schema
-pnpm --filter @ambosstech/core run refresh-schema # pull latest schema from rails.amboss.tech
+pnpm --filter @ambosstech/core run refresh-schema # pull latest schema from app.amboss.tech
 ```
 
 ## Architecture
@@ -38,7 +38,7 @@ Shared HTTP/GraphQL transport. Not consumed directly by end users.
 
 - `AmbossClient` — base class; wraps `graphql-request`. Accepts
   `{ apiKey?, serviceApiKey?, baseUrl?, fetch?, timeoutMs? }`.
-  Default `baseUrl`: `https://rails.amboss.tech/graphql`.
+  Default `baseUrl`: `https://app.amboss.tech/graphql`.
 - Two auth headers: `apiKey` is sent as `Authorization: Bearer ...`
   (cross-product key); `serviceApiKey` is sent as `x-api-key`
   (scoped payments key). Payments resources require `serviceApiKey`.
