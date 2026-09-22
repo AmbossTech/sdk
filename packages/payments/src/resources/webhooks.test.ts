@@ -16,7 +16,7 @@ const BODY = JSON.stringify({
     amount: {
       amount: '100',
       asset_id: '00000000-0000-0000-0000-000000000000',
-      precision: 11,
+      precision: 8,
       asset_symbol: 'BTC',
     },
     status: 'completed',
@@ -29,7 +29,7 @@ const BODY = JSON.stringify({
     settle_amount: {
       amount: '100',
       asset_id: '00000000-0000-0000-0000-000000000000',
-      precision: 11,
+      precision: 8,
       asset_symbol: 'BTC',
     },
     payment_details: {
