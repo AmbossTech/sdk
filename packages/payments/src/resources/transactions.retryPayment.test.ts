@@ -7,7 +7,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import type { GraphQLClient } from 'graphql-request';
 
 import { nip44Encrypt } from '../crypto/nip44.js';
-import type { SendAssetPaymentBody } from '../node/types.js';
+import type { SendAssetPaymentBody, SendLndPaymentBody } from '../node/types.js';
 import { Transactions } from './transactions.js';
 
 const PASSWORD = 'hunter2-pw'; // >= 8 chars: Argon2 salts (the password, in the 2nd hash) must be >= 8 bytes
@@ -214,6 +214,24 @@ describe('Transactions.retryPayment', () => {
     );
 
     await assert.rejects(transactions.retryPayment('tx1'), /payment_request/);
+  });
+
+  it('omits amt when retrying a fixed-amount invoice from a BTC wallet', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph' } }]);
+    const transactions = new Transactions(
+      fakeClient(host, 'LIVE', {
+        id: 'tx1',
+        wallet_id: 'w1',
+        status: 'FAILED',
+        payment_request: 'lnbcrt2500u1xyz',
+        amount_sats: '250000',
+      }),
+    );
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    await transactions.retryPayment('tx1');
+
+    assert.equal((lastBody as SendLndPaymentBody).amt, undefined);
   });
 
   it('passes amount_sats as amt when retrying an amountless invoice from a Taproot Asset wallet', async () => {

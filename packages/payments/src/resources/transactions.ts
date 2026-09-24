@@ -406,7 +406,7 @@ export class Transactions {
           ...common,
           body: {
             payment_request: paymentRequest,
-            ...(amountSats ? { amt: amountSats } : {}),
+            ...(amt ? { amt } : {}),
             fee_limit_sat: FEE_LIMIT_SATS,
             timeout_seconds: timeoutSeconds,
             ...selfPayment,
