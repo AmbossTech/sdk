@@ -111,7 +111,7 @@ function fakeClient(
 }
 
 describe('Transactions.retryPayment', () => {
-  it('leaves self-payment off on the node call by default', async () => {
+  it('leaves self-payment off by default', async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
     const transactions = new Transactions(fakeClient(host));
 
@@ -121,7 +121,7 @@ describe('Transactions.retryPayment', () => {
     assert.equal((lastBody as { allow_self_payment?: boolean }).allow_self_payment, undefined);
   });
 
-  it('forwards allowSelfPayment to the node so a failed self-payment can be retried', async () => {
+  it('forwards allowSelfPayment so a failed self-payment can be retried', async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
     const transactions = new Transactions(fakeClient(host));
 

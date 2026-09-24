@@ -73,9 +73,8 @@ export interface SendParams extends PrepareSendParams {
   /** Aborts the in-flight node payment. */
   signal?: AbortSignal;
   /**
-   * Lets the node pay an invoice it issued itself, e.g. a BTC wallet paying
-   * a Taproot Asset invoice of a wallet on the same node. Off by default:
-   * LND rejects a payment to its own node unless this is set.
+   * Allows paying an invoice your own team issued, e.g. your Taproot Asset
+   * wallet's invoice from your BTC wallet. Off by default.
    */
   allowSelfPayment?: boolean;
 }
