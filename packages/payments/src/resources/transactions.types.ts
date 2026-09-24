@@ -5,7 +5,7 @@ import type { NodePaymentResult, PaymentLifecycleStatus } from '../node/types.js
  * Where the payment goes. Provide exactly one:
  *  - `bolt11`: pay a BOLT11 invoice. Set `amountSats` only for a zero-amount
  *    invoice: it is required there and rejected for an invoice that encodes an
- *    amount. Zero-amount invoices can only be paid from base-asset wallets.
+ *    amount. It is in sats for every wallet, Taproot Asset wallets included.
  *  - `lightningAddress` + `amountSats`: pay a Lightning address for a fixed amount.
  */
 export type SendDestination =

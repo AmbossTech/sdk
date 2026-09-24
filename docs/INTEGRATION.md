@@ -126,7 +126,9 @@ Notes:
 
 - For a **zero-amount** BOLT11 invoice, add `amountSats` to the destination.
   It is required there, and the API rejects it for an invoice that already
-  encodes an amount. Only base-asset wallets can pay zero-amount invoices.
+  encodes an amount. `amountSats` is in sats for both base-asset and
+  Taproot Asset wallets; a Taproot Asset wallet pays it in the asset at the
+  RFQ rate.
 - Base-asset wallets pay over LND; Taproot Asset wallets over litd — the SDK
   picks the endpoint from the wallet's asset automatically.
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.
