@@ -14,6 +14,7 @@ import {
 import { sendAssetPayment } from '../node/lit.js';
 import { sendLndPayment } from '../node/lnd.js';
 import type { NodePaymentResult, PaymentLifecycleStatus } from '../node/types.js';
+import { isAmountlessBolt11 } from './bolt11.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type {
@@ -65,8 +66,8 @@ function buildCreateSendInput(params: SendParams): CreateSendTransactionInput {
   return input;
 }
 
-/** Amount (sats) to pass to LND — only for zero-amount BOLT11 invoices. */
-function lndAmountSats(destination: SendDestination): string | undefined {
+/** Caller-supplied amount (sats) for a BOLT11 destination; only a zero-amount invoice needs one. */
+function bolt11AmountSats(destination: SendDestination): string | undefined {
   return 'bolt11' in destination ? destination.amountSats : undefined;
 }
 
@@ -234,7 +235,7 @@ export class Transactions {
 
     // 4. Execute the payment against the node.
     const payment = await this.#payAtNode(prepared, transaction.payment_request, {
-      amountSats: lndAmountSats(destination),
+      amountSats: bolt11AmountSats(destination),
       timeoutSeconds,
       onUpdate,
       signal,
@@ -373,6 +374,9 @@ export class Transactions {
   ): Promise<NodePaymentResult> {
     const { amountSats, timeoutSeconds, onUpdate, signal, allowSelfPayment } = options;
     const selfPayment = allowSelfPayment ? { allow_self_payment: true } : {};
+    // The node rejects `amt` for an invoice that encodes an amount, and a retry
+    // only knows the persisted `amount_sats`, so the invoice itself decides.
+    const amt = amountSats && isAmountlessBolt11(paymentRequest) ? amountSats : undefined;
     const onStatus = onUpdate
       ? (status: PaymentLifecycleStatus) => onUpdate({ status })
       : undefined;
@@ -390,6 +394,7 @@ export class Transactions {
           body: {
             payment_request: {
               payment_request: paymentRequest,
+              ...(amt ? { amt } : {}),
               fee_limit_sat: FEE_LIMIT_SATS,
               timeout_seconds: timeoutSeconds,
               ...selfPayment,

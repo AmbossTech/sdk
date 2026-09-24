@@ -7,6 +7,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import type { GraphQLClient } from 'graphql-request';
 
 import { nip44Encrypt } from '../crypto/nip44.js';
+import type { SendAssetPaymentBody } from '../node/types.js';
 import { Transactions } from './transactions.js';
 
 const PASSWORD = 'hunter2-pw'; // >= 8 chars: Argon2 salts (the password, in the 2nd hash) must be >= 8 bytes
@@ -37,6 +38,21 @@ async function startNode(lines: object[]): Promise<string> {
   return `http://127.0.0.1:${addr.port}`;
 }
 
+type WalletAssetType = 'BASE_ASSET' | 'TAPROOT_ASSET';
+
+// 33-byte compressed pubkey, as the API returns a taproot asset group key.
+const GROUP_KEY_HEX = `02${'ab'.repeat(32)}`;
+
+const walletAsset = (assetType: WalletAssetType): object =>
+  assetType === 'TAPROOT_ASSET'
+    ? { id: 'a1', type: assetType, taproot_asset_details: { group_key: GROUP_KEY_HEX } }
+    : { id: 'a1', type: assetType };
+
+const walletSockets = (assetType: WalletAssetType, restHost: string): object =>
+  assetType === 'TAPROOT_ASSET'
+    ? { id: 's1', lnd: null, litd: { id: 't1', rest: restHost } }
+    : { id: 's1', lnd: { id: 'l1', rest: restHost }, litd: null };
+
 /**
  * Fake GraphQLClient that answers the operations `prepareSend()`/`retryPayment()`
  * issue. `retryPayment()` must never call `CreateSendTransaction` (`create_send`)
@@ -52,6 +68,7 @@ function fakeClient(
     status: 'FAILED',
     payment_request: 'lnbc1xyz',
   },
+  assetType: WalletAssetType = 'BASE_ASSET',
 ): GraphQLClient {
   const masterKey = bytesToHex(argon2id(PASSWORD, TEAM_ID, { dkLen: 32, t: 3, m: 64000, p: 4 }));
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
@@ -81,7 +98,7 @@ function fakeClient(
           wallet: {
             find_one: {
               id: 'w1',
-              asset: { id: 'a1', type: 'BASE_ASSET' },
+              asset: walletAsset(assetType),
               node_permissions: {
                 id: 'np1',
                 encrypted_symmetric_key,
@@ -92,7 +109,7 @@ function fakeClient(
                     network: 'regtest',
                     encrypted_macaroon,
                     tls_cert: null,
-                    sockets: { id: 's1', lnd: { id: 'l1', rest: restHost }, litd: null },
+                    sockets: walletSockets(assetType, restHost),
                   },
                 ],
               },
@@ -198,4 +215,42 @@ describe('Transactions.retryPayment', () => {
 
     await assert.rejects(transactions.retryPayment('tx1'), /payment_request/);
   });
+
+  it('passes amount_sats as amt when retrying an amountless invoice from a Taproot Asset wallet', async () => {
+    const body = await retryAssetPayment('lnbcrt1xyz', '250');
+
+    assert.equal(body.payment_request.amt, '250');
+  });
+
+  it('omits amt when retrying a fixed-amount invoice from a Taproot Asset wallet', async () => {
+    const body = await retryAssetPayment('lnbcrt2500u1xyz', '250000');
+
+    assert.equal(body.payment_request.amt, undefined);
+  });
 });
+
+async function retryAssetPayment(
+  paymentRequest: string,
+  amountSats: string,
+): Promise<SendAssetPaymentBody> {
+  const host = await startNode([
+    { result: { payment_result: { status: 'SUCCEEDED', payment_hash: 'ph' } } },
+  ]);
+  const transactions = new Transactions(
+    fakeClient(
+      host,
+      'LIVE',
+      {
+        id: 'tx1',
+        wallet_id: 'w1',
+        status: 'FAILED',
+        payment_request: paymentRequest,
+        amount_sats: amountSats,
+      },
+      'TAPROOT_ASSET',
+    ),
+  );
+  await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+  await transactions.retryPayment('tx1');
+  return lastBody as SendAssetPaymentBody;
+}
