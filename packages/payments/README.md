@@ -220,9 +220,10 @@ throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
 If the invoice was already paid (a genuine duplicate, or a replayed `idempotencyKey`), the backend returns the existing `COMPLETED` transaction instead of creating a new one; the SDK detects this and resolves immediately with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case — the transaction record doesn't store it.
 
-**Sandbox wallets** need no node or macaroon, but `password` is still mandatory
-so sandbox and production sends use the same call shape. The password is not
-used for sandbox settlement. `payment` comes back `null`; observe the outcome
+**Sandbox wallets** need no node or macaroon, but a non-empty `password` is
+still mandatory so sandbox and production sends use the same call shape. Any
+non-empty value such as `Password123` works because sandbox settlement does not
+use it. `payment` comes back `null`; observe the outcome
 via webhooks or by polling the transaction status. The backend settles
 asynchronously per the `amb_sandbox_behavior` metadata (`complete` / `fail` /
 `expire`; default `expire`):
@@ -230,7 +231,7 @@ asynchronously per the `amb_sandbox_behavior` metadata (`complete` / `fail` /
 ```ts
 const { transaction, payment } = await payments.transactions.send({
   walletId, // a sandbox wallet
-  password, // still required, matching production
+  password: 'Password123', // any non-empty value works in sandbox
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // force success in sandbox
 });

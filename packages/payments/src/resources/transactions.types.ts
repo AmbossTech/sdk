@@ -56,9 +56,9 @@ export type PreparedSend =
 
 export interface SendParams extends PrepareSendParams {
   /**
-   * Team password. Required for every send, including sandbox sends, so the
-   * sandbox call shape matches production. Sandbox settlement does not use the
-   * password, but callers must still provide it.
+   * Password required for every send so sandbox matches the production call
+   * shape. Live sends require the real team password; sandbox accepts any
+   * non-empty value because settlement does not use it.
    */
   password: string;
   destination: SendDestination;

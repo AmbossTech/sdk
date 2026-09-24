@@ -110,7 +110,7 @@ node and resolves with the terminal result.
 ```ts
 const { transaction, payment } = await payments.transactions.send({
   walletId,
-  password: process.env.TEAM_PASSWORD, // required for sandbox and live wallets
+  password: process.env.TEAM_PASSWORD, // real team password for live wallets
   teamId, // optional — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
@@ -130,15 +130,16 @@ Notes:
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.
 - If the invoice was already paid (duplicate, or a replayed `idempotencyKey`), the SDK detects the returned `COMPLETED` transaction and resolves with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case.
 
-**Sandbox wallets** need no node, but `password` remains mandatory so the
-sandbox request matches production. It is not used for sandbox settlement. The
-backend settles the transaction asynchronously and `payment` resolves `null`.
-Control the outcome with metadata and observe it via webhooks:
+**Sandbox wallets** need no node, but a non-empty `password` remains mandatory
+so the sandbox request matches production. Any non-empty value such as
+`Password123` works because sandbox does not use it. The backend settles the
+transaction asynchronously and `payment` resolves `null`. Control the outcome
+with metadata and observe it via webhooks:
 
 ```ts
 await payments.transactions.send({
   walletId: sandboxWalletId,
-  password: process.env.TEAM_PASSWORD,
+  password: 'Password123', // any non-empty value works in sandbox
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // 'complete' | 'fail' | 'expire' (default)
 });
@@ -348,7 +349,8 @@ Send-specific: `DecryptionError` (wrong team password) and `PaymentSendError`
 - [ ] `idempotency_key` / `idempotencyKey` set on receives and sends so your
       retries are safe.
 - [ ] Sends handle `DecryptionError` / `PaymentSendError` distinctly.
-- [ ] Every sandbox and production send includes the team password.
+- [ ] Every send includes a non-empty password; live uses the real team
+      password, while sandbox may use a placeholder such as `Password123`.
 - [ ] Wallets used by `retryPayment` are prepared first, and `forgetSend` runs
       when node credentials rotate.
 - [ ] The full flow was exercised against a `SANDBOX` environment first

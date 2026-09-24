@@ -176,7 +176,8 @@ export class Transactions {
    * just creates the send and returns (`payment` is `null`). The backend
    * settles the transaction asynchronously according to the
    * `amb_sandbox_behavior` metadata (`complete` / `fail` / `expire`; default
-   * `expire`). A password is still required so the call matches production.
+   * `expire`). A non-empty password is still required so the call matches
+   * production, but sandbox does not use its value.
    *
    * Prepared credentials are not used here: every new send validates the
    * password-derived credentials independently.
@@ -186,7 +187,7 @@ export class Transactions {
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
     if (!params.password?.trim()) {
-      throw new PaymentSendError('A team password is required to send from any wallet.');
+      throw new PaymentSendError('A non-empty password is required to send from any wallet.');
     }
 
     // 1–2. Resolve the node endpoint + decrypted macaroon. A caller who passes

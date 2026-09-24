@@ -179,14 +179,14 @@ describe('Transactions.send', () => {
     assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
 
-  it('creates a sandbox send with a password and returns payment: null', async () => {
+  it('accepts any non-empty sandbox password and returns payment: null', async () => {
     // No node should be contacted for sandbox — point at an unroutable host
     // so any accidental node call would fail the test.
     const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
 
     const result = await transactions.send({
       walletId: 'w1',
-      password: PASSWORD,
+      password: 'Password123',
       destination: { bolt11: 'lnbc1xyz' },
     });
 

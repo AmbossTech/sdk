@@ -74,7 +74,8 @@ async function main(): Promise<void> {
   const password = process.env.TEAM_PASSWORD;
 
   // Every send requires TEAM_PASSWORD so sandbox exercises the production
-  // call shape, even though its backend-managed settlement does not use it.
+  // call shape. Sandbox accepts any non-empty placeholder because settlement
+  // does not use the value; live sends require the real team password.
   if (!walletId || !password || !destination) {
     console.log(
       '\nSkipping send — set WALLET_ID, TEAM_PASSWORD, and a destination ' +
