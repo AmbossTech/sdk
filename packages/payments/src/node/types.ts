@@ -34,7 +34,7 @@ export interface LndPaymentUpdate {
 export interface SendAssetPaymentBody {
   payment_request: {
     payment_request: string;
-    /** Sats to pay. tapd uses it only for an amountless invoice; LND rejects it for any other. */
+    /** Sats to pay. Set only for a zero-amount invoice; the wallet rejects it for any other. */
     amt?: string;
     fee_limit_sat: string;
     timeout_seconds: number;

@@ -218,7 +218,7 @@ describe('Transactions.send', () => {
     });
   });
 
-  it('passes amountSats as amt for an amountless invoice from a Taproot Asset wallet', async () => {
+  it('passes amountSats as amt for a zero-amount invoice from a Taproot Asset wallet', async () => {
     const host = await startNode([
       { result: { payment_result: { status: 'SUCCEEDED', payment_hash: 'ph' } } },
     ]);

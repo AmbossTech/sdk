@@ -128,7 +128,7 @@ Notes:
   It is required there, and the API rejects it for an invoice that already
   encodes an amount. `amountSats` is in sats for both base-asset and
   Taproot Asset wallets; a Taproot Asset wallet pays it in the asset at the
-  RFQ rate.
+  current exchange rate.
 - Base-asset wallets pay over LND; Taproot Asset wallets over litd — the SDK
   picks the endpoint from the wallet's asset automatically.
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.

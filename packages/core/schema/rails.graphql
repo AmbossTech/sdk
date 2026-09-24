@@ -853,7 +853,7 @@ input SendByAddress {
 
 input SendByRequest {
   """
-  Amount in sats to pay. Required for an amountless invoice, and rejected for an invoice that encodes an amount.
+  Amount in sats to pay. Required for a zero-amount invoice, and rejected for an invoice that encodes an amount.
   """
   amount: String
   bolt11: String!

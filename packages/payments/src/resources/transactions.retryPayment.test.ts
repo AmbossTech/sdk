@@ -234,7 +234,7 @@ describe('Transactions.retryPayment', () => {
     assert.equal((lastBody as SendLndPaymentBody).amt, undefined);
   });
 
-  it('passes amount_sats as amt when retrying an amountless invoice from a Taproot Asset wallet', async () => {
+  it('passes amount_sats as amt when retrying a zero-amount invoice from a Taproot Asset wallet', async () => {
     const body = await retryAssetPayment('lnbcrt1xyz', '250');
 
     assert.equal(body.payment_request.amt, '250');

@@ -972,7 +972,7 @@ export type SendByAddress = {
 };
 
 export type SendByRequest = {
-  /** Amount in sats to pay. Required for an amountless invoice, and rejected for an invoice that encodes an amount. */
+  /** Amount in sats to pay. Required for a zero-amount invoice, and rejected for an invoice that encodes an amount. */
   amount?: InputMaybe<Scalars['String']['input']>;
   bolt11: Scalars['String']['input'];
 };

@@ -218,7 +218,7 @@ To pay a **zero-amount** BOLT11 invoice, set the amount in sats:
 `destination: { bolt11: 'lnbc1...', amountSats: '1000' }`. The API requires
 `amountSats` for a zero-amount invoice and rejects it for an invoice that
 already encodes an amount. `amountSats` is in sats for every wallet; a Taproot
-Asset wallet pays it in the asset at the RFQ rate.
+Asset wallet pays it in the asset at the current exchange rate.
 
 Base-asset wallets pay over LND; Taproot Asset wallets pay over litd — the SDK
 selects the endpoint automatically from the wallet's asset. A wrong password
