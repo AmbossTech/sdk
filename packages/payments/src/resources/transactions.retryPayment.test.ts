@@ -15,14 +15,18 @@ const MACAROON_HEX = '0201036c6e6402240a';
 const SYMMETRIC_KEY = bytesToHex(new Uint8Array(64).map((_, i) => (i * 5 + 1) & 0xff));
 
 let server: Server | undefined;
+let lastBody: unknown;
 afterEach(async () => {
   if (server) await new Promise<void>((resolve) => server!.close(() => resolve()));
   server = undefined;
+  lastBody = undefined;
 });
 
 async function startNode(lines: object[]): Promise<string> {
   server = createServer(async (req, res: ServerResponse) => {
-    for await (const _chunk of req) void _chunk;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    lastBody = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
     res.writeHead(200, { 'content-type': 'application/json' });
     for (const line of lines) res.write(`${JSON.stringify(line)}\n`);
     res.end();
@@ -107,6 +111,26 @@ function fakeClient(
 }
 
 describe('Transactions.retryPayment', () => {
+  it('leaves self-payment off on the node call by default', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    await transactions.retryPayment('tx1');
+
+    assert.equal((lastBody as { allow_self_payment?: boolean }).allow_self_payment, undefined);
+  });
+
+  it('forwards allowSelfPayment to the node so a failed self-payment can be retried', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    await transactions.retryPayment('tx1', { allowSelfPayment: true });
+
+    assert.equal((lastBody as { allow_self_payment?: boolean }).allow_self_payment, true);
+  });
+
   it("pays the FAILED transaction's own payment_request directly at the node, without calling create_send", async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
     const transactions = new Transactions(fakeClient(host));

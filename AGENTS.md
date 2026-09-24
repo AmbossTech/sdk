@@ -71,7 +71,7 @@ Resource getters are lazy and call `requireServiceApiKey`:
 | --------------- | -------------- | ------------------------------------------------------------- |
 | `.environments` | `Environments` | `list()`, `get(id)`, `create(input)`, `delete(id)`            |
 | `.wallets`      | `Wallets`      | `list({ environmentId })`, `get(id)`, `create(input)`, `delete(id)` |
-| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `retryPayment(paymentId)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
+| `.transactions` | `Transactions` | `findOne(id)`, `findMany(params)`, `createReceive(input)`, `send(params)`, `retryPayment(paymentId, options?)`, `prepareSend(params)`, `isSendReady(walletId)`, `forgetSend(walletId)` |
 | `.webhooks`     | `Webhooks`     | `verify(input)` — does NOT require any API key                |
 
 `Payments.webhooks` is also a static reference to `Webhooks` for stateless use.
@@ -98,7 +98,8 @@ Resource getters are lazy and call `requireServiceApiKey`:
   node-execution step, not its `create_send` step. Calling `create_send`
   again would persist a second `payments_transaction` row for the same
   invoice instead of letting the existing failed row's status update.
-  Throws `PaymentSendError` if the transaction isn't retryable. Takes no
+  Throws `PaymentSendError` if the transaction isn't retryable.
+  `options.allowSelfPayment` works like the `send` parameter. Takes no
   password — it reads the wallet's macaroon from the `prepareSend` cache and
   fails when nothing is cached.
 - The live `send` path resolves a **prepare** step (wallet send context →

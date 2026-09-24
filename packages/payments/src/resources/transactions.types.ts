@@ -80,6 +80,11 @@ export interface SendParams extends PrepareSendParams {
   allowSelfPayment?: boolean;
 }
 
+export interface RetryPaymentOptions {
+  /** Same as {@link SendParams.allowSelfPayment}; pass it again to retry a self-payment. */
+  allowSelfPayment?: boolean;
+}
+
 export interface SendResult {
   /** The transaction record created by `create_send`. */
   transaction: PaymentsTransactionFieldsFragment;

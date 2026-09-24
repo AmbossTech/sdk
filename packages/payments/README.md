@@ -303,6 +303,9 @@ transaction isn't retryable.
 const { transaction, payment } = await payments.transactions.retryPayment(paymentId);
 ```
 
+To retry a self-payment, pass the flag again:
+`retryPayment(paymentId, { allowSelfPayment: true })`.
+
 It relies on a cached macaroon: call `prepareSend({ walletId, password })`
 before retrying. Without one, it fails with a `PaymentSendError` asking you to
 prepare the wallet first.
