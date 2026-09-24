@@ -192,6 +192,7 @@ describe('Transactions.send', () => {
 
     await transactions.send({
       walletId: 'w1',
+      password: PASSWORD,
       destination: { bolt11: 'lnbc1xyz', amountSats: '250' },
     });
 
