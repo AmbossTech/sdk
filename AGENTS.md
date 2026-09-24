@@ -61,7 +61,7 @@ new Payments({
   baseUrl?: string,
   fetch?: typeof fetch,
   timeoutMs?: number,
-  send?: readonly PrepareSendParams[], // wallets to pre-warm for sending, in the background
+  send?: readonly PrepareSendParams[], // retry credentials to prepare in the background
 });
 ```
 
@@ -83,9 +83,12 @@ Resource getters are lazy and call `requireServiceApiKey`:
 - `send` creates the send transaction, decrypts the node admin macaroon
   **in-process** using the team password (never sent to the API), then pays
   directly against the node's REST endpoint. Base-asset wallets pay over LND;
-  Taproot Asset wallets over litd. Sandbox wallets need no password — the
-  backend settles asynchronously (`payment` resolves `null`); behavior is
-  driven by `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
+  Taproot Asset wallets over litd. A non-empty `password` is mandatory for
+  sandbox and live sends so their call shapes match. Live requires the real
+  team password; sandbox accepts any non-empty value because it does not use
+  it. The backend settles sandbox sends asynchronously (`payment` resolves
+  `null`); behavior is driven by
+  `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).
 - Send errors: wrong password → `DecryptionError`; node-side failure →
   `PaymentSendError`.
 - `retryPayment(paymentId)` retries a `FAILED` send **without calling
@@ -96,26 +99,25 @@ Resource getters are lazy and call `requireServiceApiKey`:
   again would persist a second `payments_transaction` row for the same
   invoice instead of letting the existing failed row's status update.
   Throws `PaymentSendError` if the transaction isn't retryable. Takes no
-  password — it reads the wallet's macaroon from the `prepareSend` cache the
-  same way a password-less `send` does, and fails the same way when nothing
-  is cached.
-- `send` is split into a **prepare** step (wallet send context →
+  password — it reads the wallet's macaroon from the `prepareSend` cache and
+  fails when nothing is cached.
+- The live `send` path resolves a **prepare** step (wallet send context →
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
-  Argon2id passes; nip44 decrypt) and the payment itself (`CreateSendTransaction`
-  + node REST call). `prepareSend` runs that step ahead of time and caches the
-  macaroon per wallet in `Transactions.#prepared`; `isSendReady(walletId)`
-  reports whether one is resident; `forgetSend(walletId)` drops it.
-  `PaymentsConfig.send` pre-warms an array of wallets from the constructor,
-  sequentially and fire-and-forget (per-wallet errors swallowed there; a missing
-  `serviceApiKey` still throws from the constructor).
-- **The one rule the cache runs on:** only a `send` that omits `password` reads
-  it, and only `prepareSend` writes it. A `send` carrying a password always
-  derives afresh. That is deliberate, and it is what keeps the cache from ever
+  Argon2id passes; nip44 decrypt) and then runs the payment itself
+  (`CreateSendTransaction` + node REST call). Every new `send` derives afresh.
+  `prepareSend` caches the macaroon for `retryPayment`; `isSendReady(walletId)`
+  reports whether one is resident and `forgetSend(walletId)` drops it.
+  `PaymentsConfig.send` prepares retry credentials for an array of wallets from
+  the constructor, sequentially and fire-and-forget (per-wallet errors swallowed
+  there; a missing `serviceApiKey` still throws from the constructor).
+- **The one rule the cache runs on:** only `retryPayment` reads it, and only
+  `prepareSend` writes it. Every `send` requires a password and derives afresh.
+  That is deliberate, and it is what keeps the cache from ever
   having to decide whether two sets of credentials are equivalent — the question
   that produced three rounds of bugs when the cache was credential-keyed
   (wrong-password eviction, a concurrent attempt displacing a good one, and an
   omitted `teamId` being answered from an overridden slot). Do not "optimize" by
-  letting password-bearing sends hit the cache without reintroducing all of it.
+  letting sends hit the cache without reintroducing all of it.
 - Remaining invariants, each with a regression test in
   `transactions.send.test.ts`:
   - Only the **macaroon** is retained, never `masterKey` / `masterPasswordHash`.

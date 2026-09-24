@@ -73,20 +73,20 @@ async function main(): Promise<void> {
   const walletId = process.env.WALLET_ID;
   const password = process.env.TEAM_PASSWORD;
 
-  // Live wallets need TEAM_PASSWORD; sandbox wallets do not (the backend
-  // settles the send itself — set IDEMPOTENCY_KEY/metadata as needed).
-  if (!walletId || !destination) {
+  // Every send requires TEAM_PASSWORD so sandbox exercises the production
+  // call shape. Sandbox accepts any non-empty placeholder because settlement
+  // does not use the value; live sends require the real team password.
+  if (!walletId || !password || !destination) {
     console.log(
-      '\nSkipping send — set WALLET_ID and a destination ' +
-        '(BOLT11, or LIGHTNING_ADDRESS + AMOUNT_SATS) to send. ' +
-        'Live wallets also need TEAM_PASSWORD.',
+      '\nSkipping send — set WALLET_ID, TEAM_PASSWORD, and a destination ' +
+        '(BOLT11, or LIGHTNING_ADDRESS + AMOUNT_SATS) to send.',
     );
     return;
   }
 
   const params: SendParams = {
     walletId,
-    ...(password ? { password } : {}),
+    password,
     destination,
     ...(process.env.TEAM_ID ? { teamId: process.env.TEAM_ID } : {}),
     ...(process.env.IDEMPOTENCY_KEY ? { idempotencyKey: process.env.IDEMPOTENCY_KEY } : {}),

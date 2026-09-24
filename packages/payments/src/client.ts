@@ -9,14 +9,14 @@ import { Webhooks } from './resources/webhooks.js';
 export type PaymentsConfig = ClientConfig & {
   webhookSecret?: string;
   /**
-   * Wallets to pre-warm for sending. Each entry's node endpoint is fetched and
-   * its admin macaroon decrypted in the background, so the first `send()` for
-   * that wallet skips two API round-trips and two Argon2id passes.
+   * Wallets whose retry credentials should be prepared in the background. Each
+   * entry's node endpoint is fetched and its admin macaroon decrypted for use
+   * by `retryPayment()`.
    *
-   * Per-wallet failures are ignored here — pre-warming is an optimization, and
-   * `send()` redoes the work and surfaces the real error. Requires
+   * Per-wallet failures are ignored here. A new `send()` always performs its
+   * own derivation and surfaces the real error. Requires
    * `serviceApiKey`: passing this without one throws `ConfigError` from the
-   * constructor rather than pre-warming nothing in silence.
+   * constructor rather than preparing nothing in silence.
    */
   send?: readonly PrepareSendParams[];
 };
@@ -34,12 +34,12 @@ export class Payments extends AmbossClient {
     // Resolving the resource here rather than inside the loop keeps a missing
     // serviceApiKey a constructor-time ConfigError. Reaching it through the
     // getter mid-loop would land that throw in the per-wallet catch below and
-    // pre-warm nothing, silently and forever.
+    // prepare nothing, silently and forever.
     if (config.send?.length) void this.#prewarmSend(this.transactions, config.send);
   }
 
   /**
-   * Fire-and-forget pre-warm of the configured wallets. Sequential on purpose:
+   * Fire-and-forget preparation of the configured wallets. Sequential on purpose:
    * each wallet needs two memory-hard Argon2id passes, so limiting work to one
    * wallet at a time avoids excessive memory pressure during startup.
    *
@@ -55,8 +55,8 @@ export class Payments extends AmbossClient {
       try {
         await transactions.prepareSend(wallet);
       } catch {
-        // Deliberately swallowed: `send()` re-runs the derivation and throws
-        // the real DecryptionError / ApiError where the caller can catch it.
+        // Deliberately swallowed: use explicit prepareSend() when callers need
+        // to observe a DecryptionError / ApiError.
       }
     }
   }

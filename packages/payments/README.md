@@ -43,7 +43,7 @@ new Payments({
   baseUrl?: string,            // default: https://app.amboss.tech/graphql
   fetch?: typeof fetch,        // override for tests / non-Node runtimes
   timeoutMs?: number,          // default: 30000
-  send?: Array<{ walletId: string, password?: string, teamId?: string }>, // pre-warm — see Sending
+  send?: Array<{ walletId: string, password?: string, teamId?: string }>, // pre-cache retry credentials
 });
 ```
 
@@ -220,15 +220,18 @@ throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
 If the invoice was already paid (a genuine duplicate, or a replayed `idempotencyKey`), the backend returns the existing `COMPLETED` transaction instead of creating a new one; the SDK detects this and resolves immediately with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case — the transaction record doesn't store it.
 
-**Sandbox wallets** need no node, no macaroon, and no password — just call
-`send` and the backend settles the transaction for you. `payment` comes back
-`null`; observe the outcome via webhooks or by polling the transaction status.
-The backend settles asynchronously per the `amb_sandbox_behavior` metadata
-(`complete` / `fail` / `expire`; default `expire`):
+**Sandbox wallets** need no node or macaroon, but a non-empty `password` is
+still mandatory so sandbox and production sends use the same call shape. Any
+non-empty value such as `Password123` works because sandbox settlement does not
+use it. `payment` comes back `null`; observe the outcome
+via webhooks or by polling the transaction status. The backend settles
+asynchronously per the `amb_sandbox_behavior` metadata (`complete` / `fail` /
+`expire`; default `expire`):
 
 ```ts
 const { transaction, payment } = await payments.transactions.send({
-  walletId, // a sandbox wallet — no password required
+  walletId, // a sandbox wallet
+  password: 'Password123', // any non-empty value works in sandbox
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // force success in sandbox
 });
@@ -236,23 +239,17 @@ const { transaction, payment } = await payments.transactions.send({
 payment; // null — settlement happens server-side
 ```
 
-#### Pre-warming a wallet
+#### Preparing credentials for retries
 
-Before it can pay, `send` has to fetch the wallet's send context, fetch its node
-permissions, and run **two Argon2id passes** (m=64 MiB, t=3, p=4) to derive the
-key that decrypts the macaroon. That is seconds of work, and none of it depends
-on the invoice.
-
-`prepareSend` does it up front and caches the result per wallet. Afterwards
-`send` issues a single API call — `CreateSendTransaction` — and pays:
+`prepareSend` fetches a wallet's send context and node permissions, performs the
+two Argon2id passes, and caches only the decrypted macaroon. The cache is used
+by `retryPayment`, which intentionally has no password parameter. A new `send`
+always requires `password` and derives credentials afresh.
 
 ```ts
 await payments.transactions.prepareSend({ walletId, password });
 
 payments.transactions.isSendReady(walletId); // true — macaroon is in memory
-
-// no password needed now: the macaroon is already decrypted
-await payments.transactions.send({ walletId, destination: { bolt11: 'lnbc1...' } });
 
 payments.transactions.forgetSend(walletId); // drop it again
 ```
@@ -269,31 +266,26 @@ const payments = new Payments({
 payments.transactions.isSendReady(walletId);
 ```
 
-The constructor form is fire-and-forget and **ignores failures** — a bad
-password surfaces later, from `send`. Use `await prepareSend(...)` when you want
-to see the error at startup.
+The constructor form is fire-and-forget and **ignores failures**. Use
+`await prepareSend(...)` when you need to observe preparation errors.
 
 Notes:
 
 - **Argon2id runs on a shared worker thread**, so its CPU-bound work does not
-  block the event loop. Prepare at startup to avoid its latency on the first
-  payment request.
+  block the event loop.
 - Each wallet costs its own derivation, so a long `send` list takes a while.
   Entries are prepared one at a time (running them concurrently would not
   overlap anything).
 - `isSendReady` is `false` while a preparation is still running, `true` only
   once the macaroon is resident.
-- **Only a `send` that omits `password` uses the cache.** Passing a `password`
-  means "use these credentials", so it always derives afresh — the same cost as
-  not preparing at all — and never reads or replaces what you prepared. So a
-  typo'd password fails that one call and nothing else: the prepared wallet stays
-  prepared and later password-less sends keep working.
+- `send` never reads or replaces the cache. A typo'd password fails that call
+  without disturbing credentials prepared for a later retry.
 - The cache has no expiry. Call `forgetSend(walletId)` to pick up rotated node
   credentials — or to stop holding decrypted node admin access in memory once a
   run of sends is finished. Only the macaroon is retained; the Argon2 master key
   is discarded after the decrypt.
-- Sandbox wallets prepare too (no password, nothing to decrypt) — it just caches
-  the fact that no node payment is needed.
+- Sandbox wallets can prepare too; this only caches the fact that no node
+  payment is needed.
 
 #### Retrying a failed send
 
@@ -309,10 +301,9 @@ transaction isn't retryable.
 const { transaction, payment } = await payments.transactions.retryPayment(paymentId);
 ```
 
-It relies on a cached macaroon the same way a password-less `send` does — call
-`prepareSend({ walletId, password })` first (it usually already ran for the
-original send). Without one, it fails the same way an unprepared, password-less
-`send` would.
+It relies on a cached macaroon: call `prepareSend({ walletId, password })`
+before retrying. Without one, it fails with a `PaymentSendError` asking you to
+prepare the wallet first.
 
 ## Examples
 

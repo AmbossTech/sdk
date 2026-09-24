@@ -88,20 +88,20 @@ export class Transactions {
   /**
    * Resolves and caches everything `send()` needs before it can pay: the
    * wallet's environment type, its node endpoint, and — for live wallets — the
-   * decrypted admin macaroon. Two GraphQL round-trips plus two Argon2id passes,
-   * so calling this ahead of time takes seconds off the first `send()`.
+   * decrypted admin macaroon. This prepares the credentials used by
+   * `retryPayment()` without putting a password on that method.
    *
-   * A later `send()` for the same wallet that **omits `password`** uses what
-   * this cached. A `send()` that passes a `password` always derives afresh —
-   * the cache never has to decide whether two sets of credentials match.
+   * `retryPayment()` uses what this cached. A new `send()` always requires a
+   * password and derives afresh, so the cache never has to decide whether two
+   * sets of credentials match.
    *
    * Safe to call repeatedly: an already-prepared wallet resolves immediately,
    * and concurrent calls for one wallet share a single derivation. Call
    * {@link forgetSend} first to re-derive after credentials rotate.
    *
    * Argon2id is CPU-bound (m=64 MiB, t=3, p=4), but runs on a shared worker
-   * thread so it does not block the event loop. Preparing ahead of time still
-   * avoids that work on the first payment request.
+   * thread so it does not block the event loop. Preparing ahead of time avoids
+   * that work when `retryPayment()` needs the cached context.
    */
   async prepareSend(params: PrepareSendParams): Promise<void> {
     const { walletId } = params;
@@ -127,9 +127,8 @@ export class Transactions {
 
   /**
    * Whether `walletId`'s macaroon and node endpoint are decrypted and resident
-   * in memory, so a password-less `send()` would skip straight to creating the
-   * transaction. `false` while a `prepareSend()` for that wallet is still
-   * running.
+   * in memory for `retryPayment()`. `false` while a `prepareSend()` for that
+   * wallet is still running.
    */
   isSendReady(walletId: string): boolean {
     return this.#prepared.has(walletId);
@@ -177,20 +176,25 @@ export class Transactions {
    * just creates the send and returns (`payment` is `null`). The backend
    * settles the transaction asynchronously according to the
    * `amb_sandbox_behavior` metadata (`complete` / `fail` / `expire`; default
-   * `expire`). No password is required.
+   * `expire`). A non-empty password is still required so the call matches
+   * production, but sandbox does not use its value.
    *
-   * Call {@link prepareSend} beforehand (or pass `send` to the `Payments`
-   * constructor) to move steps 1–2 off this path entirely.
+   * Prepared credentials are not used here: every new send validates the
+   * password-derived credentials independently.
    */
   async send(params: SendParams): Promise<SendResult> {
     const { destination, onUpdate, signal } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
+    if (!params.password?.trim()) {
+      throw new PaymentSendError('A non-empty password is required to send from any wallet.');
+    }
+
     // 1–2. Resolve the node endpoint + decrypted macaroon. A caller who passes
-    //      a `password` always gets a fresh derivation; only a password-less
-    //      send reads what `prepareSend()` cached. Either way a wrong password
-    //      fails here, before any transaction is created.
-    const prepared = await this.#sendContext(params);
+    //      a `password` always gets a fresh derivation. A wrong password fails
+    //      here, before any transaction is created. Prepared contexts remain
+    //      reserved for retryPayment(), which has no password parameter.
+    const prepared = await this.#resolveSendContext(params);
 
     // 3. Create the send transaction → backend returns the bolt11 to pay.
     const createRes = await this.#sdk.CreateSendTransaction({
@@ -249,12 +253,10 @@ export class Transactions {
    * Throws {@link PaymentSendError} if the transaction is not in `FAILED`
    * status, its invoice has expired, or it has no `payment_request` to retry.
    *
-   * Takes no password: like a password-less {@link send}, it relies on
-   * {@link prepareSend} having already cached the wallet's macaroon (as it
-   * would for the original `send()` call that failed). If nothing is cached
-   * for the transaction's wallet, this fails the same way an unprepared,
-   * password-less `send()` does — a `PaymentSendError` asking for a team
-   * password via `prepareSend()` first.
+   * Takes no password: it relies on {@link prepareSend} having already cached
+   * the wallet's macaroon. If nothing is cached for the transaction's wallet,
+   * this fails with a `PaymentSendError` asking for a team password via
+   * `prepareSend()` first.
    */
   async retryPayment(paymentId: string): Promise<SendResult> {
     const transaction = await this.findOne(paymentId);
@@ -282,13 +284,7 @@ export class Transactions {
     return { transaction, payment };
   }
 
-  /**
-   * The context `send()` will pay with. Passing a `password` means "use these
-   * credentials", so it always derives; omitting one means "use what was
-   * prepared", falling through to a derivation when nothing was — which is how
-   * sandbox wallets (no password, nothing to decrypt) still work unprepared,
-   * and how an unprepared live wallet gets its "password required" error.
-   */
+  /** Resolve the cached context used by `retryPayment()`, which takes no password. */
   #sendContext(params: PrepareSendParams): Promise<PreparedSend> {
     if (params.password !== undefined) return this.#resolveSendContext(params);
 
