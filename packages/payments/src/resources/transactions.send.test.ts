@@ -179,6 +179,27 @@ describe('Transactions.send', () => {
     assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
 
+  it('sends amountSats for a bolt11 destination to create_send as request.amount', async () => {
+    const inner = fakeClient('http://127.0.0.1:1', 'SANDBOX');
+    const innerRequest = (inner as unknown as { request: (args: unknown) => Promise<unknown> })
+      .request;
+    let createSendVariables: unknown;
+    const request = async (args: { document: string; variables?: unknown }): Promise<unknown> => {
+      if (args.document.includes('CreateSendTransaction')) createSendVariables = args.variables;
+      return innerRequest(args);
+    };
+    const transactions = new Transactions({ request } as unknown as GraphQLClient);
+
+    await transactions.send({
+      walletId: 'w1',
+      destination: { bolt11: 'lnbc1xyz', amountSats: '250' },
+    });
+
+    assert.deepEqual(createSendVariables, {
+      input: { wallet_id: 'w1', request: { bolt11: 'lnbc1xyz', amount: '250' } },
+    });
+  });
+
   it('leaves self-payment off by default', async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph' } }]);
     const transactions = new Transactions(fakeClient(host));

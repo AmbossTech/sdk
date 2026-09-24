@@ -52,6 +52,7 @@ function buildCreateSendInput(params: SendParams): CreateSendTransactionInput {
 
   if ('bolt11' in destination) {
     input.request = { bolt11: destination.bolt11 };
+    if (destination.amountSats) input.request.amount = destination.amountSats;
   } else {
     input.address = {
       lightning_address: destination.lightningAddress,
