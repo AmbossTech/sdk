@@ -55,6 +55,12 @@ export type PreparedSend =
     };
 
 export interface SendParams extends PrepareSendParams {
+  /**
+   * Team password. Required for every send, including sandbox sends, so the
+   * sandbox call shape matches production. Sandbox settlement does not use the
+   * password, but callers must still provide it.
+   */
+  password: string;
   destination: SendDestination;
   /** Idempotency key forwarded to `create_send`. */
   idempotencyKey?: string;

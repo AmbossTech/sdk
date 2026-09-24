@@ -179,18 +179,34 @@ describe('Transactions.send', () => {
     assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
 
-  it('creates a sandbox send without a password and returns payment: null', async () => {
+  it('creates a sandbox send with a password and returns payment: null', async () => {
     // No node should be contacted for sandbox — point at an unroutable host
     // so any accidental node call would fail the test.
     const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
 
     const result = await transactions.send({
       walletId: 'w1',
+      password: PASSWORD,
       destination: { bolt11: 'lnbc1xyz' },
     });
 
     assert.equal(result.payment, null);
     assert.equal(result.transaction.payment_request, 'lnbc1xyz');
+  });
+
+  it('rejects a sandbox send without a password before creating a transaction', async () => {
+    const { client, ops } = withCallLog(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+    const transactions = new Transactions(client);
+
+    await assert.rejects(
+      transactions.send({
+        walletId: 'w1',
+        password: '',
+        destination: { bolt11: 'lnbc1xyz' },
+      }),
+      /password is required/,
+    );
+    assert.deepEqual(ops, []);
   });
 
   it('accepts an explicit teamId override', async () => {
@@ -271,32 +287,6 @@ describe('Transactions.send', () => {
 });
 
 describe('Transactions.prepareSend', () => {
-  it('lets a later send() skip the context and permissions queries', async () => {
-    const host = await startNode([
-      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
-    ]);
-    const { client, ops } = withCallLog(fakeClient(host));
-    const transactions = new Transactions(client);
-
-    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
-    assert.equal(countOf(ops, 'GetWalletSendContext'), 1);
-    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
-
-    ops.length = 0;
-    const result = await transactions.send({
-      walletId: 'w1', // no password — the macaroon is already in memory
-      destination: { bolt11: 'lnbc1xyz' },
-    });
-
-    assert.ok(result.payment);
-    assert.equal(result.payment.status, 'SUCCEEDED');
-    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
-    assert.equal(countOf(ops, 'CreateSendTransaction'), 1);
-    // The cache only short-circuits credential derivation — the node call
-    // itself must still carry the fee limit every send gets.
-    assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
-  });
-
   it('reports isSendReady false while preparing and true once resolved', async () => {
     const transactions = new Transactions(fakeClient('http://127.0.0.1:1'));
 
@@ -337,15 +327,7 @@ describe('Transactions.prepareSend', () => {
       "one caller's bad password must not evict a working prepared wallet",
     );
 
-    ops.length = 0;
-    const result = await transactions.send({
-      walletId: 'w1', // still no password — the surviving macaroon is used
-      destination: { bolt11: 'lnbc1xyz' },
-    });
-
-    assert.ok(result.payment);
-    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 0, 'the survivor must still be cached');
-    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
   });
 
   it('always re-derives for a send() that passes a password, even the prepared one', async () => {
@@ -392,31 +374,5 @@ describe('Transactions.prepareSend', () => {
       true,
       'a resolved prepareSend must survive a concurrent bad-credential send',
     );
-  });
-
-  it('serves a password-less send from a wallet prepared with a teamId override', async () => {
-    const WALLET_TEAM_ID = '22222222-2222-2222-2222-222222222222';
-    const host = await startNode([
-      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
-    ]);
-    const { client, ops } = withCallLog(fakeClient(host, 'LIVE', undefined, WALLET_TEAM_ID));
-    const transactions = new Transactions(client);
-
-    // Only the override's salt decrypts this wallet, so preparing succeeding
-    // at all proves the override was used.
-    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD, teamId: TEAM_ID });
-    assert.equal(transactions.isSendReady('w1'), true);
-    ops.length = 0;
-
-    // The prepared macaroon is served as-is. There is no salt to re-resolve
-    // and disagree about, because nothing is re-derived.
-    const result = await transactions.send({
-      walletId: 'w1',
-      destination: { bolt11: 'lnbc1xyz' },
-    });
-
-    assert.ok(result.payment);
-    assert.equal(ops.length, 1, 'send() should issue exactly one operation');
-    assert.equal(countOf(ops, 'CreateSendTransaction'), 1);
   });
 });

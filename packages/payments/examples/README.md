@@ -52,8 +52,10 @@ Destinations (set one):
 - `BOLT11` — a BOLT11 invoice (`AMOUNT_SATS` only needed for zero-amount invoices).
 - `LIGHTNING_ADDRESS` + `AMOUNT_SATS` — pay a Lightning address.
 
-The team password is used only to decrypt the node admin macaroon locally; it is
-never sent to the API. See `.env.example` for every supported variable.
+The team password is mandatory for both sandbox and live sends. For live
+wallets it decrypts the node admin macaroon locally; it is never sent to the
+API. Sandbox settlement does not use it, but requiring it keeps the call shape
+identical to production. See `.env.example` for every supported variable.
 
 ### `verify-webhook.mjs` / `verify-webhook.cjs` — offline webhook verification
 

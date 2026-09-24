@@ -51,7 +51,7 @@ new Payments({
   baseUrl?: string,       // default: https://app.amboss.tech/graphql
   fetch?: typeof fetch,   // override for tests / non-Node runtimes
   timeoutMs?: number,     // default: 30000
-  send?: Array<{ walletId, password?, teamId? }>, // pre-warm sending — see Step 4
+  send?: Array<{ walletId, password?, teamId? }>, // pre-cache retry credentials — see Step 4
 });
 ```
 
@@ -110,7 +110,7 @@ node and resolves with the terminal result.
 ```ts
 const { transaction, payment } = await payments.transactions.send({
   walletId,
-  password: process.env.TEAM_PASSWORD, // live wallets only
+  password: process.env.TEAM_PASSWORD, // required for sandbox and live wallets
   teamId, // optional — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
@@ -130,26 +130,24 @@ Notes:
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.
 - If the invoice was already paid (duplicate, or a replayed `idempotencyKey`), the SDK detects the returned `COMPLETED` transaction and resolves with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case.
 
-**Sandbox wallets** need no password and no node — the backend settles the
-transaction asynchronously and `payment` resolves `null`. Control the outcome
-with metadata and observe it via webhooks:
+**Sandbox wallets** need no node, but `password` remains mandatory so the
+sandbox request matches production. It is not used for sandbox settlement. The
+backend settles the transaction asynchronously and `payment` resolves `null`.
+Control the outcome with metadata and observe it via webhooks:
 
 ```ts
 await payments.transactions.send({
   walletId: sandboxWalletId,
+  password: process.env.TEAM_PASSWORD,
   destination: { bolt11: 'lnbc1...' },
   metadata: { amb_sandbox_behavior: 'complete' }, // 'complete' | 'fail' | 'expire' (default)
 });
 ```
 
-### Making sends fast
+### Preparing credentials for retries
 
-A cold `send` is expensive, and almost none of that cost is the payment. Before
-it can pay it must fetch the wallet's send context, fetch its node permissions,
-and run two Argon2id passes (m=64 MiB, t=3, p=4) to derive the key that decrypts
-your macaroon. Seconds of work — all of it independent of the invoice.
-
-Do it once, at startup:
+`retryPayment` takes no password argument, so prepare and cache its node
+credentials before retrying. You can do this at startup:
 
 ```ts
 const payments = new Payments({
@@ -167,22 +165,25 @@ await payments.transactions.prepareSend({
 });
 ```
 
-Either way the wallet's macaroon ends up decrypted in memory, and every later
-`send` for it is one API call plus the payment — no password argument needed:
+Either way the wallet's macaroon ends up decrypted in memory for
+`retryPayment`. New sends always require a password and derive afresh:
 
 ```ts
 payments.transactions.isSendReady(walletId); // true once prepared
-await payments.transactions.send({ walletId, destination: { bolt11: 'lnbc1...' } });
+await payments.transactions.send({
+  walletId,
+  password: process.env.TEAM_PASSWORD,
+  destination: { bolt11: 'lnbc1...' },
+});
 ```
 
 Three things to plan around:
 
-- **Drop the `password` from prepared sends.** It is what makes them fast: a
-  `send` that carries a password derives from scratch every time, prepared or
-  not. Keep passing it only where you have not prepared the wallet.
+- **Always pass `password` to `send`.** Prepared credentials are reserved for
+  `retryPayment`; they do not bypass the send-time password requirement.
 - **Argon2id runs on a shared worker thread.** Its CPU work does not block the
-  event loop. Prepare during startup or a warm-up hook to avoid that latency on
-  the first payment request. The constructor `send` option starts it in the background.
+  event loop. The constructor `send` option prepares retry credentials in the
+  background.
 - **You are holding node admin credentials in memory** for as long as the wallet
   stays prepared, which is what makes sends fast. Call
   `payments.transactions.forgetSend(walletId)` to release them, and to pick up
@@ -347,9 +348,9 @@ Send-specific: `DecryptionError` (wrong team password) and `PaymentSendError`
 - [ ] `idempotency_key` / `idempotencyKey` set on receives and sends so your
       retries are safe.
 - [ ] Sends handle `DecryptionError` / `PaymentSendError` distinctly.
-- [ ] Sending wallets are prepared at startup (constructor `send` or
-      `prepareSend`) so no request pays the Argon2id cost, and
-      `forgetSend` runs when node credentials rotate.
+- [ ] Every sandbox and production send includes the team password.
+- [ ] Wallets used by `retryPayment` are prepared first, and `forgetSend` runs
+      when node credentials rotate.
 - [ ] The full flow was exercised against a `SANDBOX` environment first
       (`amb_sandbox_behavior: 'complete' | 'fail' | 'expire'` covers all
       outcomes).
