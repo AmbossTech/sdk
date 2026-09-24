@@ -1,6 +1,7 @@
-/** The amount sits in the human-readable part (before the last `1`); network prefixes have no digits. */
+import { decode } from 'light-bolt11-decoder';
+
+/** Throws when `paymentRequest` is not a valid BOLT11 invoice. */
 export function isAmountlessBolt11(paymentRequest: string): boolean {
-  const invoice = paymentRequest.toLowerCase().replace(/^lightning:/, '');
-  const humanReadablePart = invoice.slice(0, invoice.lastIndexOf('1'));
-  return !/\d/.test(humanReadablePart);
+  const invoice = paymentRequest.replace(/^lightning:/i, '');
+  return !decode(invoice).sections.some((section) => section.name === 'amount');
 }

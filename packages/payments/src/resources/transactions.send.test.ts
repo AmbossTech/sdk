@@ -9,6 +9,7 @@ import type { GraphQLClient } from 'graphql-request';
 import { nip44Encrypt } from '../crypto/nip44.js';
 import type { SendAssetPaymentBody } from '../node/types.js';
 import { Transactions } from './transactions.js';
+import { FIXED_AMOUNT_BOLT11, ZERO_AMOUNT_BOLT11 } from './bolt11.fixtures.js';
 
 const PASSWORD = 'hunter2-pw'; // >= 8 chars: Argon2 salts (the password, in the 2nd hash) must be >= 8 bytes
 const TEAM_ID = '11111111-1111-1111-1111-111111111111';
@@ -63,7 +64,11 @@ const walletSockets = (assetType: WalletAssetType, restHost: string): object =>
 function fakeClient(
   restHost: string,
   environmentType: 'LIVE' | 'SANDBOX' = 'LIVE',
-  createSendTransaction: object = { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' },
+  createSendTransaction: object = {
+    id: 'tx1',
+    status: 'PENDING',
+    payment_request: FIXED_AMOUNT_BOLT11,
+  },
   walletTeamId: string = TEAM_ID,
   assetType: WalletAssetType = 'BASE_ASSET',
 ): GraphQLClient {
@@ -164,7 +169,7 @@ async function prepareThenFailWrongPassword(): Promise<{
     transactions.send({
       walletId: 'w1',
       password: 'a-different-password',
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     }),
     /admin macaroon/,
   );
@@ -184,14 +189,14 @@ describe('Transactions.send', () => {
     const result = await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
       onUpdate: (p) => statuses.push(p.status),
     });
 
     assert.ok(result.payment); // live wallet pays over the node
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.equal(result.payment.paymentHash, 'ph');
-    assert.equal(result.transaction.payment_request, 'lnbc1xyz');
+    assert.equal(result.transaction.payment_request, FIXED_AMOUNT_BOLT11);
     assert.deepEqual(statuses, ['IN_FLIGHT', 'SUCCEEDED']);
     assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
@@ -210,11 +215,11 @@ describe('Transactions.send', () => {
     await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      destination: { bolt11: 'lnbc1xyz', amountSats: '250' },
+      destination: { bolt11: ZERO_AMOUNT_BOLT11, amountSats: '250' },
     });
 
     assert.deepEqual(createSendVariables, {
-      input: { wallet_id: 'w1', request: { bolt11: 'lnbc1xyz', amount: '250' } },
+      input: { wallet_id: 'w1', request: { bolt11: ZERO_AMOUNT_BOLT11, amount: '250' } },
     });
   });
 
@@ -226,7 +231,7 @@ describe('Transactions.send', () => {
       fakeClient(
         host,
         'LIVE',
-        { id: 'tx1', status: 'PENDING', payment_request: 'lnbcrt1xyz' },
+        { id: 'tx1', status: 'PENDING', payment_request: ZERO_AMOUNT_BOLT11 },
         TEAM_ID,
         'TAPROOT_ASSET',
       ),
@@ -235,7 +240,7 @@ describe('Transactions.send', () => {
     await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      destination: { bolt11: 'lnbcrt1xyz', amountSats: '250' },
+      destination: { bolt11: ZERO_AMOUNT_BOLT11, amountSats: '250' },
     });
 
     assert.equal((lastBody as SendAssetPaymentBody).payment_request.amt, '250');
@@ -276,11 +281,11 @@ describe('Transactions.send', () => {
     const result = await transactions.send({
       walletId: 'w1',
       password: 'Password123',
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     });
 
     assert.equal(result.payment, null);
-    assert.equal(result.transaction.payment_request, 'lnbc1xyz');
+    assert.equal(result.transaction.payment_request, FIXED_AMOUNT_BOLT11);
   });
 
   it('rejects a sandbox send without a password before creating a transaction', async () => {
@@ -291,7 +296,7 @@ describe('Transactions.send', () => {
       transactions.send({
         walletId: 'w1',
         password: '',
-        destination: { bolt11: 'lnbc1xyz' },
+        destination: { bolt11: FIXED_AMOUNT_BOLT11 },
       }),
       /password is required/,
     );
@@ -308,7 +313,7 @@ describe('Transactions.send', () => {
       walletId: 'w1',
       password: PASSWORD,
       teamId: TEAM_ID, // overrides the value resolved from the wallet
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     });
 
     assert.ok(result.payment);
@@ -323,7 +328,7 @@ describe('Transactions.send', () => {
       transactions.send({
         walletId: 'w1',
         password: 'wrong-password',
-        destination: { bolt11: 'lnbc1xyz' },
+        destination: { bolt11: FIXED_AMOUNT_BOLT11 },
       }),
       /admin macaroon/,
     );
@@ -337,14 +342,14 @@ describe('Transactions.send', () => {
         status: 'COMPLETED',
         payment_hash: 'ph-existing',
         fee: '3',
-        payment_request: 'lnbc1xyz',
+        payment_request: FIXED_AMOUNT_BOLT11,
       }),
     );
 
     const result = await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     });
 
     assert.ok(result.payment);
@@ -360,13 +365,17 @@ describe('Transactions.send', () => {
       { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
     ]);
     const transactions = new Transactions(
-      fakeClient(host, 'LIVE', { id: 'tx1', status: 'PENDING', payment_request: 'lnbc1xyz' }),
+      fakeClient(host, 'LIVE', {
+        id: 'tx1',
+        status: 'PENDING',
+        payment_request: FIXED_AMOUNT_BOLT11,
+      }),
     );
 
     const result = await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     });
 
     assert.ok(result.payment);
@@ -434,7 +443,7 @@ describe('Transactions.prepareSend', () => {
     const result = await transactions.send({
       walletId: 'w1',
       password: PASSWORD,
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     });
 
     assert.ok(result.payment);
@@ -452,7 +461,7 @@ describe('Transactions.prepareSend', () => {
     const failed = transactions.send({
       walletId: 'w1',
       password: 'a-different-password',
-      destination: { bolt11: 'lnbc1xyz' },
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
     });
 
     await prepared;

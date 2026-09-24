@@ -9,6 +9,7 @@ import type { GraphQLClient } from 'graphql-request';
 import { nip44Encrypt } from '../crypto/nip44.js';
 import type { SendAssetPaymentBody, SendLndPaymentBody } from '../node/types.js';
 import { Transactions } from './transactions.js';
+import { FIXED_AMOUNT_BOLT11, ZERO_AMOUNT_BOLT11 } from './bolt11.fixtures.js';
 
 const PASSWORD = 'hunter2-pw'; // >= 8 chars: Argon2 salts (the password, in the 2nd hash) must be >= 8 bytes
 const TEAM_ID = '11111111-1111-1111-1111-111111111111';
@@ -66,7 +67,7 @@ function fakeClient(
     id: 'tx1',
     wallet_id: 'w1',
     status: 'FAILED',
-    payment_request: 'lnbc1xyz',
+    payment_request: FIXED_AMOUNT_BOLT11,
   },
   assetType: WalletAssetType = 'BASE_ASSET',
 ): GraphQLClient {
@@ -158,7 +159,7 @@ describe('Transactions.retryPayment', () => {
     assert.ok(result.payment);
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.equal(result.payment.paymentHash, 'ph2');
-    assert.equal(result.transaction.payment_request, 'lnbc1xyz');
+    assert.equal(result.transaction.payment_request, FIXED_AMOUNT_BOLT11);
   });
 
   it('throws PaymentSendError for a live wallet with no prepared macaroon', async () => {
@@ -185,7 +186,7 @@ describe('Transactions.retryPayment', () => {
         id: 'tx1',
         wallet_id: 'w1',
         status: 'PENDING',
-        payment_request: 'lnbc1xyz',
+        payment_request: FIXED_AMOUNT_BOLT11,
       }),
     );
 
@@ -199,7 +200,7 @@ describe('Transactions.retryPayment', () => {
         id: 'tx1',
         wallet_id: 'w1',
         status: 'FAILED',
-        payment_request: 'lnbc1xyz',
+        payment_request: FIXED_AMOUNT_BOLT11,
         expires_at: new Date(Date.now() - 60_000).toISOString(),
       }),
     );
@@ -223,7 +224,7 @@ describe('Transactions.retryPayment', () => {
         id: 'tx1',
         wallet_id: 'w1',
         status: 'FAILED',
-        payment_request: 'lnbcrt2500u1xyz',
+        payment_request: FIXED_AMOUNT_BOLT11,
         amount_sats: '250000',
       }),
     );
@@ -235,13 +236,13 @@ describe('Transactions.retryPayment', () => {
   });
 
   it('passes amount_sats as amt when retrying a zero-amount invoice from a Taproot Asset wallet', async () => {
-    const body = await retryAssetPayment('lnbcrt1xyz', '250');
+    const body = await retryAssetPayment(ZERO_AMOUNT_BOLT11, '250');
 
     assert.equal(body.payment_request.amt, '250');
   });
 
   it('omits amt when retrying a fixed-amount invoice from a Taproot Asset wallet', async () => {
-    const body = await retryAssetPayment('lnbcrt2500u1xyz', '250000');
+    const body = await retryAssetPayment(FIXED_AMOUNT_BOLT11, '250000');
 
     assert.equal(body.payment_request.amt, undefined);
   });

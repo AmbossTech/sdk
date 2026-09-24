@@ -53,6 +53,7 @@
     "@noble/hashes": "^1.7.1",
     "graphql": "^16.10.0",
     "graphql-request": "^7.4.0",
+    "light-bolt11-decoder": "^3.2.0",
     "nostr-tools": "^2.11.0",
     "undici": "^7.0.0"
   },
