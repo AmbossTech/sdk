@@ -72,6 +72,16 @@ export interface SendParams extends PrepareSendParams {
   onUpdate?: (progress: SendProgress) => void;
   /** Aborts the in-flight node payment. */
   signal?: AbortSignal;
+  /**
+   * Allows paying an invoice your own team issued, e.g. your Taproot Asset
+   * wallet's invoice from your BTC wallet. Off by default.
+   */
+  allowSelfPayment?: boolean;
+}
+
+export interface RetryPaymentOptions {
+  /** Same as {@link SendParams.allowSelfPayment}; pass it again to retry a self-payment. */
+  allowSelfPayment?: boolean;
 }
 
 export interface SendResult {

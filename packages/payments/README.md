@@ -220,6 +220,8 @@ throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
 If the invoice was already paid (a genuine duplicate, or a replayed `idempotencyKey`), the backend returns the existing `COMPLETED` transaction instead of creating a new one; the SDK detects this and resolves immediately with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case — the transaction record doesn't store it.
 
+To pay an invoice your own team issued — for example, your Taproot Asset wallet's invoice from your BTC wallet — pass `allowSelfPayment: true`. It is off by default.
+
 **Sandbox wallets** need no node or macaroon, but a non-empty `password` is
 still mandatory so sandbox and production sends use the same call shape. Any
 non-empty value such as `Password123` works because sandbox settlement does not
@@ -300,6 +302,9 @@ transaction isn't retryable.
 ```ts
 const { transaction, payment } = await payments.transactions.retryPayment(paymentId);
 ```
+
+To retry a self-payment, pass the flag again:
+`retryPayment(paymentId, { allowSelfPayment: true })`.
 
 It relies on a cached macaroon: call `prepareSend({ walletId, password })`
 before retrying. Without one, it fails with a `PaymentSendError` asking you to

@@ -13,6 +13,7 @@ export type { WebhookVerificationErrorCode } from './errors.js';
 
 export type {
   PrepareSendParams,
+  RetryPaymentOptions,
   SendDestination,
   SendParams,
   SendProgress,
