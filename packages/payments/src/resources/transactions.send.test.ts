@@ -179,6 +179,33 @@ describe('Transactions.send', () => {
     assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '4294967296');
   });
 
+  it('leaves self-payment off by default', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: 'lnbc1xyz' },
+    });
+
+    assert.equal((lastBody as { allow_self_payment?: boolean }).allow_self_payment, undefined);
+  });
+
+  it('forwards allowSelfPayment so a team can pay its own invoice', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: 'lnbc1xyz' },
+      allowSelfPayment: true,
+    });
+
+    assert.equal((lastBody as { allow_self_payment?: boolean }).allow_self_payment, true);
+  });
+
   it('accepts any non-empty sandbox password and returns payment: null', async () => {
     // No node should be contacted for sandbox — point at an unroutable host
     // so any accidental node call would fail the test.

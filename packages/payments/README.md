@@ -220,6 +220,8 @@ throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
 If the invoice was already paid (a genuine duplicate, or a replayed `idempotencyKey`), the backend returns the existing `COMPLETED` transaction instead of creating a new one; the SDK detects this and resolves immediately with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case — the transaction record doesn't store it.
 
+To pay an invoice issued by the same node — for example, paying your own Taproot Asset wallet's invoice from your BTC wallet — pass `allowSelfPayment: true`. It is off by default, and LND rejects a payment to its own node without it.
+
 **Sandbox wallets** need no node or macaroon, but a non-empty `password` is
 still mandatory so sandbox and production sends use the same call shape. Any
 non-empty value such as `Password123` works because sandbox settlement does not

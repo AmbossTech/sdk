@@ -183,7 +183,7 @@ export class Transactions {
    * password-derived credentials independently.
    */
   async send(params: SendParams): Promise<SendResult> {
-    const { destination, onUpdate, signal } = params;
+    const { destination, onUpdate, signal, allowSelfPayment } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
     if (!params.password?.trim()) {
@@ -236,6 +236,7 @@ export class Transactions {
       timeoutSeconds,
       onUpdate,
       signal,
+      allowSelfPayment,
     });
 
     return { transaction, payment };
@@ -364,9 +365,11 @@ export class Transactions {
       timeoutSeconds: number;
       onUpdate?: SendParams['onUpdate'];
       signal?: AbortSignal;
+      allowSelfPayment?: boolean;
     },
   ): Promise<NodePaymentResult> {
-    const { amountSats, timeoutSeconds, onUpdate, signal } = options;
+    const { amountSats, timeoutSeconds, onUpdate, signal, allowSelfPayment } = options;
+    const selfPayment = allowSelfPayment ? { allow_self_payment: true } : {};
     const onStatus = onUpdate
       ? (status: PaymentLifecycleStatus) => onUpdate({ status })
       : undefined;
@@ -386,6 +389,7 @@ export class Transactions {
               payment_request: paymentRequest,
               fee_limit_sat: FEE_LIMIT_SATS,
               timeout_seconds: timeoutSeconds,
+              ...selfPayment,
             },
             ...(prepared.groupKeyBase64 ? { group_key: prepared.groupKeyBase64 } : {}),
           },
@@ -397,6 +401,7 @@ export class Transactions {
             ...(amountSats ? { amt: amountSats } : {}),
             fee_limit_sat: FEE_LIMIT_SATS,
             timeout_seconds: timeoutSeconds,
+            ...selfPayment,
           },
         });
   }

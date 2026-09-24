@@ -129,6 +129,7 @@ Notes:
   picks the endpoint from the wallet's asset automatically.
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.
 - If the invoice was already paid (duplicate, or a replayed `idempotencyKey`), the SDK detects the returned `COMPLETED` transaction and resolves with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case.
+- To pay an invoice issued by the same node (for example, your own Taproot Asset wallet's invoice from your BTC wallet), pass `allowSelfPayment: true`. It is off by default; LND rejects payments to its own node without it.
 
 **Sandbox wallets** need no node, but a non-empty `password` remains mandatory
 so the sandbox request matches production. Any non-empty value such as

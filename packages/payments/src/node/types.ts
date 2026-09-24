@@ -7,6 +7,7 @@ export interface SendLndPaymentBody {
   amt?: string;
   fee_limit_sat: string;
   timeout_seconds: number;
+  allow_self_payment?: boolean;
 }
 
 /** Streamed update from `POST /v2/router/send` (LND). */
@@ -35,6 +36,7 @@ export interface SendAssetPaymentBody {
     payment_request: string;
     fee_limit_sat: string;
     timeout_seconds: number;
+    allow_self_payment?: boolean;
   };
   /**
    * Asset group key — identifies which asset to spend on the asset channel.
