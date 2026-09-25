@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/AmbossTech/sdk/compare/payments-v1.1.1...payments-v1.2.0) (2026-09-25)
+
+
+### Features
+
+* add Transactions findOne/findMany [AMB-2992] ([#49](https://github.com/AmbossTech/sdk/issues/49)) ([8947588](https://github.com/AmbossTech/sdk/commit/8947588ca1ed007625137ba0a684142fa43ee48d))
+* **payments:** add optional allowSelfPayment to send [AMB-3241] ([#56](https://github.com/AmbossTech/sdk/issues/56)) ([93614bc](https://github.com/AmbossTech/sdk/commit/93614bc85bcbf1abb0fd5313dccd4c4765e0705f))
+* **payments:** send amountSats to create_send for zero-amount BOLT11 invoices [AMB-3258] ([#54](https://github.com/AmbossTech/sdk/issues/54)) ([0e51c39](https://github.com/AmbossTech/sdk/commit/0e51c39596ab890990d6fa5ab0e33ad57e515df8))
+
+
+### Bug Fixes
+
+* **core:** default baseUrl to app.amboss.tech ([#52](https://github.com/AmbossTech/sdk/issues/52)) ([050a08e](https://github.com/AmbossTech/sdk/commit/050a08ec0fd58575f5dd6cdbd13b479f2e31fb50))
+* **payments:** correct BTC precision in webhook test fixture ([#53](https://github.com/AmbossTech/sdk/issues/53)) ([7b177f3](https://github.com/AmbossTech/sdk/commit/7b177f34e6fba49cbef8ff04343612b28f78dde8))
+* **payments:** require password for all sends [AMB-3265] ([#55](https://github.com/AmbossTech/sdk/issues/55)) ([bb50f3b](https://github.com/AmbossTech/sdk/commit/bb50f3bdf3d692c28fd0304cea766cc5fa987a91))
+
 ## [1.1.1](https://github.com/AmbossTech/sdk/compare/payments-v1.1.0...payments-v1.1.1) (2026-08-20)
 
 
