@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/AmbossTech/sdk/compare/core-v0.4.0...core-v0.5.0) (2026-09-25)
+
+
+### Features
+
+* **payments:** send amountSats to create_send for zero-amount BOLT11 invoices [AMB-3258] ([#54](https://github.com/AmbossTech/sdk/issues/54)) ([0e51c39](https://github.com/AmbossTech/sdk/commit/0e51c39596ab890990d6fa5ab0e33ad57e515df8))
+
+
+### Bug Fixes
+
+* **core:** default baseUrl to app.amboss.tech ([#52](https://github.com/AmbossTech/sdk/issues/52)) ([050a08e](https://github.com/AmbossTech/sdk/commit/050a08ec0fd58575f5dd6cdbd13b479f2e31fb50))
+
 ## [0.4.0](https://github.com/AmbossTech/sdk/compare/core-v0.3.0...core-v0.4.0) (2026-08-20)
 
 
