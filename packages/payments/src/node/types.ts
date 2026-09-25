@@ -34,6 +34,8 @@ export interface LndPaymentUpdate {
 export interface SendAssetPaymentBody {
   payment_request: {
     payment_request: string;
+    /** Sats to pay. Set only for a zero-amount invoice; the wallet rejects it for any other. */
+    amt?: string;
     fee_limit_sat: string;
     timeout_seconds: number;
     allow_self_payment?: boolean;

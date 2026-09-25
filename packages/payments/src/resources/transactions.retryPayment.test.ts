@@ -7,7 +7,9 @@ import { bytesToHex } from '@noble/hashes/utils';
 import type { GraphQLClient } from 'graphql-request';
 
 import { nip44Encrypt } from '../crypto/nip44.js';
+import type { SendAssetPaymentBody, SendLndPaymentBody } from '../node/types.js';
 import { Transactions } from './transactions.js';
+import { FIXED_AMOUNT_BOLT11, ZERO_AMOUNT_BOLT11 } from './bolt11.fixtures.js';
 
 const PASSWORD = 'hunter2-pw'; // >= 8 chars: Argon2 salts (the password, in the 2nd hash) must be >= 8 bytes
 const TEAM_ID = '11111111-1111-1111-1111-111111111111';
@@ -37,6 +39,21 @@ async function startNode(lines: object[]): Promise<string> {
   return `http://127.0.0.1:${addr.port}`;
 }
 
+type WalletAssetType = 'BASE_ASSET' | 'TAPROOT_ASSET';
+
+// 33-byte compressed pubkey, as the API returns a taproot asset group key.
+const GROUP_KEY_HEX = `02${'ab'.repeat(32)}`;
+
+const walletAsset = (assetType: WalletAssetType): object =>
+  assetType === 'TAPROOT_ASSET'
+    ? { id: 'a1', type: assetType, taproot_asset_details: { group_key: GROUP_KEY_HEX } }
+    : { id: 'a1', type: assetType };
+
+const walletSockets = (assetType: WalletAssetType, restHost: string): object =>
+  assetType === 'TAPROOT_ASSET'
+    ? { id: 's1', lnd: null, litd: { id: 't1', rest: restHost } }
+    : { id: 's1', lnd: { id: 'l1', rest: restHost }, litd: null };
+
 /**
  * Fake GraphQLClient that answers the operations `prepareSend()`/`retryPayment()`
  * issue. `retryPayment()` must never call `CreateSendTransaction` (`create_send`)
@@ -50,8 +67,9 @@ function fakeClient(
     id: 'tx1',
     wallet_id: 'w1',
     status: 'FAILED',
-    payment_request: 'lnbc1xyz',
+    payment_request: FIXED_AMOUNT_BOLT11,
   },
+  assetType: WalletAssetType = 'BASE_ASSET',
 ): GraphQLClient {
   const masterKey = bytesToHex(argon2id(PASSWORD, TEAM_ID, { dkLen: 32, t: 3, m: 64000, p: 4 }));
   const encrypted_symmetric_key = nip44Encrypt(SYMMETRIC_KEY, masterKey);
@@ -81,7 +99,7 @@ function fakeClient(
           wallet: {
             find_one: {
               id: 'w1',
-              asset: { id: 'a1', type: 'BASE_ASSET' },
+              asset: walletAsset(assetType),
               node_permissions: {
                 id: 'np1',
                 encrypted_symmetric_key,
@@ -92,7 +110,7 @@ function fakeClient(
                     network: 'regtest',
                     encrypted_macaroon,
                     tls_cert: null,
-                    sockets: { id: 's1', lnd: { id: 'l1', rest: restHost }, litd: null },
+                    sockets: walletSockets(assetType, restHost),
                   },
                 ],
               },
@@ -141,7 +159,7 @@ describe('Transactions.retryPayment', () => {
     assert.ok(result.payment);
     assert.equal(result.payment.status, 'SUCCEEDED');
     assert.equal(result.payment.paymentHash, 'ph2');
-    assert.equal(result.transaction.payment_request, 'lnbc1xyz');
+    assert.equal(result.transaction.payment_request, FIXED_AMOUNT_BOLT11);
   });
 
   it('throws PaymentSendError for a live wallet with no prepared macaroon', async () => {
@@ -168,7 +186,7 @@ describe('Transactions.retryPayment', () => {
         id: 'tx1',
         wallet_id: 'w1',
         status: 'PENDING',
-        payment_request: 'lnbc1xyz',
+        payment_request: FIXED_AMOUNT_BOLT11,
       }),
     );
 
@@ -182,7 +200,7 @@ describe('Transactions.retryPayment', () => {
         id: 'tx1',
         wallet_id: 'w1',
         status: 'FAILED',
-        payment_request: 'lnbc1xyz',
+        payment_request: FIXED_AMOUNT_BOLT11,
         expires_at: new Date(Date.now() - 60_000).toISOString(),
       }),
     );
@@ -198,4 +216,60 @@ describe('Transactions.retryPayment', () => {
 
     await assert.rejects(transactions.retryPayment('tx1'), /payment_request/);
   });
+
+  it('omits amt when retrying a fixed-amount invoice from a BTC wallet', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph' } }]);
+    const transactions = new Transactions(
+      fakeClient(host, 'LIVE', {
+        id: 'tx1',
+        wallet_id: 'w1',
+        status: 'FAILED',
+        payment_request: FIXED_AMOUNT_BOLT11,
+        amount_sats: '250000',
+      }),
+    );
+
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    await transactions.retryPayment('tx1');
+
+    assert.equal((lastBody as SendLndPaymentBody).amt, undefined);
+  });
+
+  it('passes amount_sats as amt when retrying a zero-amount invoice from a Taproot Asset wallet', async () => {
+    const body = await retryAssetPayment(ZERO_AMOUNT_BOLT11, '250');
+
+    assert.equal(body.payment_request.amt, '250');
+  });
+
+  it('omits amt when retrying a fixed-amount invoice from a Taproot Asset wallet', async () => {
+    const body = await retryAssetPayment(FIXED_AMOUNT_BOLT11, '250000');
+
+    assert.equal(body.payment_request.amt, undefined);
+  });
 });
+
+async function retryAssetPayment(
+  paymentRequest: string,
+  amountSats: string,
+): Promise<SendAssetPaymentBody> {
+  const host = await startNode([
+    { result: { payment_result: { status: 'SUCCEEDED', payment_hash: 'ph' } } },
+  ]);
+  const transactions = new Transactions(
+    fakeClient(
+      host,
+      'LIVE',
+      {
+        id: 'tx1',
+        wallet_id: 'w1',
+        status: 'FAILED',
+        payment_request: paymentRequest,
+        amount_sats: amountSats,
+      },
+      'TAPROOT_ASSET',
+    ),
+  );
+  await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+  await transactions.retryPayment('tx1');
+  return lastBody as SendAssetPaymentBody;
+}
