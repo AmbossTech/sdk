@@ -146,37 +146,6 @@ function withCallLog(inner: GraphQLClient): { client: GraphQLClient; ops: string
 const countOf = (ops: readonly string[], operation: string): number =>
   ops.filter((document) => document.includes(operation)).length;
 
-/**
- * Prepares `w1`, then fails a send on it with the wrong password — the shared
- * arrangement for the cases asserting that a bad password disturbs nothing.
- * `ops` is cleared right before the failing send, so what it holds on return is
- * that send's own traffic.
- */
-async function prepareThenFailWrongPassword(): Promise<{
-  transactions: Transactions;
-  ops: string[];
-}> {
-  const host = await startNode([
-    { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
-  ]);
-  const { client, ops } = withCallLog(fakeClient(host));
-  const transactions = new Transactions(client);
-
-  await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
-  ops.length = 0;
-
-  await assert.rejects(
-    transactions.send({
-      walletId: 'w1',
-      password: 'a-different-password',
-      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
-    }),
-    /admin macaroon/,
-  );
-
-  return { transactions, ops };
-}
-
 describe('Transactions.send', () => {
   it('decrypts the macaroon, creates the send, and pays via the LND node', async () => {
     const host = await startNode([
@@ -398,16 +367,6 @@ describe('Transactions.prepareSend', () => {
     assert.equal(transactions.isSendReady('w1'), false);
   });
 
-  it('does not reuse a prepared macaroon for a send() with a different password', async () => {
-    const { ops } = await prepareThenFailWrongPassword();
-
-    assert.equal(
-      countOf(ops, 'GetWalletNodePermissions'),
-      1,
-      'different credentials must re-derive rather than hit the cache',
-    );
-  });
-
   it('marks a sandbox wallet ready without a password', async () => {
     const transactions = new Transactions(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
 
@@ -415,62 +374,135 @@ describe('Transactions.prepareSend', () => {
 
     assert.equal(transactions.isSendReady('w1'), true);
   });
+});
 
-  it('keeps an already-prepared wallet after a send() with the wrong password fails', async () => {
-    const { transactions, ops } = await prepareThenFailWrongPassword();
+describe('Transactions.send credential cache', () => {
+  const sendOnW1 = (transactions: Transactions, password = PASSWORD) =>
+    transactions.send({
+      walletId: 'w1',
+      password,
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
+    });
+
+  const paidNode = (): Promise<string> =>
+    startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } }]);
+
+  it('uses prepared credentials without any derivation when a password is passed', async () => {
+    const { client, ops } = withCallLog(fakeClient(await paidNode()));
+    const transactions = new Transactions(client);
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+    ops.length = 0;
+
+    await sendOnW1(transactions, 'a-different-password');
 
     assert.equal(
-      transactions.isSendReady('w1'),
-      true,
-      "one caller's bad password must not evict a working prepared wallet",
+      countOf(ops, 'GetWalletNodePermissions') + countOf(ops, 'GetWalletSendContext'),
+      0,
     );
+  });
+
+  it('pays with the cached credentials when a password is passed', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
+
+    const result = await sendOnW1(transactions, 'a-different-password');
+
+    assert.equal(result.payment?.status, 'SUCCEEDED');
+  });
+
+  it('warms the cache on the first send', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    await sendOnW1(transactions);
+
+    assert.equal(transactions.isSendReady('w1'), true);
+  });
+
+  it('derives only once across consecutive sends', async () => {
+    const { client, ops } = withCallLog(fakeClient(await paidNode()));
+    const transactions = new Transactions(client);
+
+    await sendOnW1(transactions);
+    await sendOnW1(transactions);
 
     assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
   });
 
-  it('always re-derives for a send() that passes a password, even the prepared one', async () => {
-    const host = await startNode([
-      { result: { status: 'SUCCEEDED', payment_hash: 'ph', fee_sat: '1' } },
-    ]);
-    const { client, ops } = withCallLog(fakeClient(host));
+  it('shares one derivation between concurrent sends', async () => {
+    const { client, ops } = withCallLog(fakeClient(await paidNode()));
     const transactions = new Transactions(client);
 
-    await transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
-    ops.length = 0;
+    await Promise.all([sendOnW1(transactions), sendOnW1(transactions)]);
 
-    // Passing a password means "use these credentials", so the cache is not
-    // consulted — that is what frees it from ever comparing credentials.
-    const result = await transactions.send({
-      walletId: 'w1',
-      password: PASSWORD,
-      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
-    });
-
-    assert.ok(result.payment);
-    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1, 'a password send derives afresh');
-    assert.equal(transactions.isSendReady('w1'), true, 'and leaves the prepared wallet untouched');
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
   });
 
-  it('keeps a concurrent successful preparation when another send has bad credentials', async () => {
-    const host = await startNode([{ result: { status: 'SUCCEEDED' } }]);
-    const transactions = new Transactions(fakeClient(host));
+  it('shares an in-flight prepareSend derivation with a concurrent send', async () => {
+    const { client, ops } = withCallLog(fakeClient(await paidNode()));
+    const transactions = new Transactions(client);
 
-    // Both derivations are in flight at once: the good one is started first,
-    // then the bad one, which must not displace it.
-    const prepared = transactions.prepareSend({ walletId: 'w1', password: PASSWORD });
-    const failed = transactions.send({
-      walletId: 'w1',
-      password: 'a-different-password',
-      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
-    });
+    await Promise.all([
+      transactions.prepareSend({ walletId: 'w1', password: PASSWORD }),
+      sendOnW1(transactions),
+    ]);
 
-    await prepared;
-    await assert.rejects(failed, /admin macaroon/);
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 1);
+  });
 
-    assert.equal(
-      transactions.isSendReady('w1'),
-      true,
-      'a resolved prepareSend must survive a concurrent bad-credential send',
-    );
+  it('does not cache a failed derivation', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    await assert.rejects(sendOnW1(transactions, 'wrong-password'), /admin macaroon/);
+
+    assert.equal(transactions.isSendReady('w1'), false);
+  });
+
+  it('derives again with the right password after a failed one', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+    await assert.rejects(sendOnW1(transactions, 'wrong-password'), /admin macaroon/);
+
+    const result = await sendOnW1(transactions);
+
+    assert.equal(result.payment?.status, 'SUCCEEDED');
+  });
+
+  it('does not store credentials when forgetSend runs during the derivation', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    const sending = sendOnW1(transactions);
+    transactions.forgetSend('w1');
+    await sending;
+
+    assert.equal(transactions.isSendReady('w1'), false);
+  });
+
+  it('still pays with the credentials it derived when forgetSend ran mid-derivation', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    const sending = sendOnW1(transactions);
+    transactions.forgetSend('w1');
+
+    assert.equal((await sending).payment?.status, 'SUCCEEDED');
+  });
+
+  it('derives again after forgetSend', async () => {
+    const { client, ops } = withCallLog(fakeClient(await paidNode()));
+    const transactions = new Transactions(client);
+    await sendOnW1(transactions);
+
+    transactions.forgetSend('w1');
+    await sendOnW1(transactions);
+
+    assert.equal(countOf(ops, 'GetWalletNodePermissions'), 2);
+  });
+
+  it('skips the wallet lookup on a second sandbox send', async () => {
+    const { client, ops } = withCallLog(fakeClient('http://127.0.0.1:1', 'SANDBOX'));
+    const transactions = new Transactions(client);
+
+    await sendOnW1(transactions);
+    await sendOnW1(transactions);
+
+    assert.equal(countOf(ops, 'GetWalletSendContext'), 1);
   });
 });
