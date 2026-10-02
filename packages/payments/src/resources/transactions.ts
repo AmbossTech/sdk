@@ -272,7 +272,15 @@ export class Transactions {
     if (cached) return cached;
 
     const inFlight = this.#pending.get(walletId);
-    if (inFlight) return inFlight;
+    if (inFlight) {
+      try {
+        return await inFlight;
+      } catch {
+        // The starter's own credentials failed, which says nothing about ours.
+        if (this.#pending.get(walletId) === inFlight) this.#pending.delete(walletId);
+        return this.#prepare(params);
+      }
+    }
 
     const promise = this.#resolveSendContext(params);
     this.#pending.set(walletId, promise);

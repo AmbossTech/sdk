@@ -121,7 +121,9 @@ Resource getters are lazy and call `requireServiceApiKey`:
   `transactions.send.test.ts`:
   - Only the **macaroon** is retained, never `masterKey` / `masterPasswordHash`.
   - A failed derivation is never cached, and concurrent sends share one
-    derivation.
+    derivation. A sender that joined a derivation which then failed derives
+    again with its own credentials, so one caller's bad password cannot fail
+    another's send.
   - `forgetSend` mid-preparation wins: a result landing afterwards is discarded
     rather than resurrecting the macaroon.
 - Argon2id runs on a shared worker thread, so it does not block the event loop.

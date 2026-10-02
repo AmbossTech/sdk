@@ -505,4 +505,39 @@ describe('Transactions.send credential cache', () => {
 
     assert.equal(countOf(ops, 'GetWalletSendContext'), 1);
   });
+
+  it('pays with the right password when a concurrent send with a wrong password fails first', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    const [wrongPasswordSend, rightPasswordSend] = await Promise.allSettled([
+      sendOnW1(transactions, 'wrong-password'),
+      sendOnW1(transactions),
+    ]);
+
+    assert.equal(wrongPasswordSend.status, 'rejected');
+    assert.equal(
+      rightPasswordSend.status === 'fulfilled' && rightPasswordSend.value.payment?.status,
+      'SUCCEEDED',
+    );
+  });
+
+  it('pays with the right password when a concurrent passwordless prepare fails first', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    const [passwordlessPrepare, send] = await Promise.allSettled([
+      transactions.prepareSend({ walletId: 'w1' }),
+      sendOnW1(transactions),
+    ]);
+
+    assert.equal(passwordlessPrepare.status, 'rejected');
+    assert.equal(send.status === 'fulfilled' && send.value.payment?.status, 'SUCCEEDED');
+  });
+
+  it('caches the credentials derived by the fallback send', async () => {
+    const transactions = new Transactions(fakeClient(await paidNode()));
+
+    await Promise.allSettled([sendOnW1(transactions, 'wrong-password'), sendOnW1(transactions)]);
+
+    assert.equal(transactions.isSendReady('w1'), true);
+  });
 });
