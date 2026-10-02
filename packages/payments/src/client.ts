@@ -9,12 +9,12 @@ import { Webhooks } from './resources/webhooks.js';
 export type PaymentsConfig = ClientConfig & {
   webhookSecret?: string;
   /**
-   * Wallets whose retry credentials should be prepared in the background. Each
+   * Wallets whose send credentials should be prepared in the background. Each
    * entry's node endpoint is fetched and its admin macaroon decrypted for use
-   * by `retryPayment()`.
+   * by `send()` and `retryPayment()`.
    *
-   * Per-wallet failures are ignored here. A new `send()` always performs its
-   * own derivation and surfaces the real error. Requires
+   * Per-wallet failures are ignored here. A later `send()` derives the
+   * credentials itself and surfaces the real error. Requires
    * `serviceApiKey`: passing this without one throws `ConfigError` from the
    * constructor rather than preparing nothing in silence.
    */

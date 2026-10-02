@@ -43,7 +43,7 @@ new Payments({
   baseUrl?: string,            // default: https://app.amboss.tech/graphql
   fetch?: typeof fetch,        // override for tests / non-Node runtimes
   timeoutMs?: number,          // default: 30000
-  send?: Array<{ walletId: string, password?: string, teamId?: string }>, // pre-cache retry credentials
+  send?: Array<{ walletId: string, password?: string, teamId?: string }>, // pre-cache send credentials
 });
 ```
 
@@ -224,6 +224,10 @@ Base-asset wallets pay over LND; Taproot Asset wallets pay over litd — the SDK
 selects the endpoint automatically from the wallet's asset. A wrong password
 throws `DecryptionError`; a node-side failure throws `PaymentSendError`.
 
+The first `send` for a wallet derives its node credentials (a few seconds of
+Argon2id) and caches them in memory. Later sends reuse the cache, even when you
+pass a different `password`; see [Preparing credentials](#preparing-credentials-for-sends-and-retries).
+
 If the invoice was already paid (a genuine duplicate, or a replayed `idempotencyKey`), the backend returns the existing `COMPLETED` transaction instead of creating a new one; the SDK detects this and resolves immediately with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case — the transaction record doesn't store it.
 
 To pay an invoice your own team issued — for example, your Taproot Asset wallet's invoice from your BTC wallet — pass `allowSelfPayment: true`. It is off by default.
@@ -247,12 +251,13 @@ const { transaction, payment } = await payments.transactions.send({
 payment; // null — settlement happens server-side
 ```
 
-#### Preparing credentials for retries
+#### Preparing credentials for sends and retries
 
 `prepareSend` fetches a wallet's send context and node permissions, performs the
-two Argon2id passes, and caches only the decrypted macaroon. The cache is used
-by `retryPayment`, which intentionally has no password parameter. A new `send`
-always requires `password` and derives credentials afresh.
+two Argon2id passes, and caches only the decrypted macaroon. `send` and
+`retryPayment` both use this cache. `send` fills it too when it is empty, so
+`prepareSend` only moves the cost ahead of the first payment. `send` still
+requires a non-empty `password`; `retryPayment` has no password parameter.
 
 ```ts
 await payments.transactions.prepareSend({ walletId, password });
@@ -286,11 +291,14 @@ Notes:
   overlap anything).
 - `isSendReady` is `false` while a preparation is still running, `true` only
   once the macaroon is resident.
-- `send` never reads or replaces the cache. A typo'd password fails that call
-  without disturbing credentials prepared for a later retry.
-- The cache has no expiry. Call `forgetSend(walletId)` to pick up rotated node
-  credentials — or to stop holding decrypted node admin access in memory once a
-  run of sends is finished. Only the macaroon is retained; the Argon2 master key
+- While credentials are cached, `send` uses them and does not check the
+  `password` you pass. A wrong password fails only the send that has to derive.
+  A failed derivation is never cached.
+- Concurrent sends and `prepareSend` calls for one wallet share a single
+  derivation.
+- The cache has no expiry, and the first `send` fills it. Call
+  `forgetSend(walletId)` to pick up rotated node credentials — or to stop
+  holding decrypted node admin access in memory once a run of sends is finished. Only the macaroon is retained; the Argon2 master key
   is discarded after the decrypt.
 - Sandbox wallets can prepare too; this only caches the fact that no node
   payment is needed.
@@ -313,7 +321,7 @@ To retry a self-payment, pass the flag again:
 `retryPayment(paymentId, { allowSelfPayment: true })`.
 
 It relies on a cached macaroon: call `prepareSend({ walletId, password })`
-before retrying. Without one, it fails with a `PaymentSendError` asking you to
+or `send` before retrying. Without one, it fails with a `PaymentSendError` asking you to
 prepare the wallet first.
 
 ## Examples

@@ -150,10 +150,13 @@ await payments.transactions.send({
 });
 ```
 
-### Preparing credentials for retries
+### Preparing credentials for sends and retries
 
-`retryPayment` takes no password argument, so prepare and cache its node
-credentials before retrying. You can do this at startup:
+The first `send` for a wallet derives its node credentials (7 to 15 s) and
+caches them in memory. Later sends reuse them and skip that cost, even when you
+pass a different `password`. `retryPayment` takes no password argument and uses
+the same cache. To pay the derivation cost before the first payment, prepare the
+wallet at startup:
 
 ```ts
 const payments = new Payments({
@@ -171,8 +174,8 @@ await payments.transactions.prepareSend({
 });
 ```
 
-Either way the wallet's macaroon ends up decrypted in memory for
-`retryPayment`. New sends always require a password and derive afresh:
+Either way the wallet's macaroon ends up decrypted in memory for `send` and
+`retryPayment`:
 
 ```ts
 payments.transactions.isSendReady(walletId); // true once prepared
@@ -185,13 +188,15 @@ await payments.transactions.send({
 
 Three things to plan around:
 
-- **Always pass `password` to `send`.** Prepared credentials are reserved for
-  `retryPayment`; they do not bypass the send-time password requirement.
+- **Always pass `password` to `send`.** It is required on every call, but it is
+  not checked while credentials for the wallet are cached. A wrong password
+  fails only the send that has to derive. Concurrent sends for one wallet share
+  one derivation.
 - **Argon2id runs on a shared worker thread.** Its CPU work does not block the
   event loop. The constructor `send` option prepares retry credentials in the
   background.
-- **You are holding node admin credentials in memory** for as long as the wallet
-  stays prepared, which is what makes sends fast. Call
+- **You are holding node admin credentials in memory** from the first `send` or
+  `prepareSend` until you drop them, which is what makes sends fast. Call
   `payments.transactions.forgetSend(walletId)` to release them, and to pick up
   rotated node credentials — there is no expiry. The Argon2 master key is never
   cached; only the one wallet's macaroon is.
@@ -356,8 +361,8 @@ Send-specific: `DecryptionError` (wrong team password) and `PaymentSendError`
 - [ ] Sends handle `DecryptionError` / `PaymentSendError` distinctly.
 - [ ] Every send includes a non-empty password; live uses the real team
       password, while sandbox may use a placeholder such as `Password123`.
-- [ ] Wallets used by `retryPayment` are prepared first, and `forgetSend` runs
-      when node credentials rotate.
+- [ ] `forgetSend` runs when node credentials rotate; `retryPayment` needs a
+      prior `send` or `prepareSend` for its wallet.
 - [ ] The full flow was exercised against a `SANDBOX` environment first
       (`amb_sandbox_behavior: 'complete' | 'fail' | 'expire'` covers all
       outcomes).

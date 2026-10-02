@@ -59,7 +59,8 @@ export interface SendParams extends PrepareSendParams {
   /**
    * Password required for every send so sandbox matches the production call
    * shape. Live sends require the real team password; sandbox accepts any
-   * non-empty value because settlement does not use it.
+   * non-empty value because settlement does not use it. Not checked while
+   * credentials for the wallet are cached.
    */
   password: string;
   destination: SendDestination;

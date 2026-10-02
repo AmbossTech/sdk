@@ -100,30 +100,30 @@ Resource getters are lazy and call `requireServiceApiKey`:
   invoice instead of letting the existing failed row's status update.
   Throws `PaymentSendError` if the transaction isn't retryable.
   `options.allowSelfPayment` works like the `send` parameter. Takes no
-  password — it reads the wallet's macaroon from the `prepareSend` cache and
-  fails when nothing is cached.
+  password — it reads the wallet's macaroon from the send cache (filled by
+  `prepareSend` or `send`) and fails when nothing is cached.
 - The live `send` path resolves a **prepare** step (wallet send context →
   `GetWalletSendContext`; node permissions → `GetWalletNodePermissions`; two
   Argon2id passes; nip44 decrypt) and then runs the payment itself
-  (`CreateSendTransaction` + node REST call). Every new `send` derives afresh.
-  `prepareSend` caches the macaroon for `retryPayment`; `isSendReady(walletId)`
-  reports whether one is resident and `forgetSend(walletId)` drops it.
-  `PaymentsConfig.send` prepares retry credentials for an array of wallets from
+  (`CreateSendTransaction` + node REST call). `send` and `prepareSend` both go
+  through one cached derivation per wallet; `isSendReady(walletId)` reports
+  whether a macaroon is resident and `forgetSend(walletId)` drops it.
+  `PaymentsConfig.send` prepares credentials for an array of wallets from
   the constructor, sequentially and fire-and-forget (per-wallet errors swallowed
   there; a missing `serviceApiKey` still throws from the constructor).
-- **The one rule the cache runs on:** only `retryPayment` reads it, and only
-  `prepareSend` writes it. Every `send` requires a password and derives afresh.
-  That is deliberate, and it is what keeps the cache from ever
-  having to decide whether two sets of credentials are equivalent — the question
-  that produced three rounds of bugs when the cache was credential-keyed
-  (wrong-password eviction, a concurrent attempt displacing a good one, and an
-  omitted `teamId` being answered from an overridden slot). Do not "optimize" by
-  letting sends hit the cache without reintroducing all of it.
+- **Cache rule:** `send`, `prepareSend` and `retryPayment` share one per-wallet
+  cache. A cache hit wins even when `send` is given a `password`, so a wrong
+  password does not fail a send while credentials are cached. The first `send`
+  fills an empty cache. The cache is not keyed by credentials and has no
+  expiry: `forgetSend` is the only way to drop it or to pick up rotated node
+  credentials.
 - Remaining invariants, each with a regression test in
   `transactions.send.test.ts`:
   - Only the **macaroon** is retained, never `masterKey` / `masterPasswordHash`.
-  - A failing `send` cannot disturb a prepared wallet, because it never touches
-    the map.
+  - A failed derivation is never cached, and concurrent sends share one
+    derivation. A sender that joined a derivation which then failed derives
+    again with its own credentials, so one caller's bad password cannot fail
+    another's send.
   - `forgetSend` mid-preparation wins: a result landing afterwards is discarded
     rather than resurrecting the macaroon.
 - Argon2id runs on a shared worker thread, so it does not block the event loop.
