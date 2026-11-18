@@ -232,6 +232,8 @@ If the invoice was already paid (a genuine duplicate, or a replayed `idempotency
 
 To pay an invoice your own team issued — for example, your Taproot Asset wallet's invoice from your BTC wallet — pass `allowSelfPayment: true`. It is off by default.
 
+To cap routing fees, pass `feeLimitSats` (the most the node may spend on fees, in sats). Without it the node is given no practical limit, so set one for production payouts — for example 1% of the amount with a small floor.
+
 **Sandbox wallets** need no node or macaroon, but a non-empty `password` is
 still mandatory so sandbox and production sends use the same call shape. Any
 non-empty value such as `Password123` works because sandbox settlement does not
@@ -318,7 +320,7 @@ const { transaction, payment } = await payments.transactions.retryPayment(paymen
 ```
 
 To retry a self-payment, pass the flag again:
-`retryPayment(paymentId, { allowSelfPayment: true })`.
+`retryPayment(paymentId, { allowSelfPayment: true })`. `feeLimitSats` works the same way.
 
 It relies on a cached macaroon: call `prepareSend({ walletId, password })`
 or `send` before retrying. Without one, it fails with a `PaymentSendError` asking you to

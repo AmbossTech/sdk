@@ -99,7 +99,8 @@ Resource getters are lazy and call `requireServiceApiKey`:
   again would persist a second `payments_transaction` row for the same
   invoice instead of letting the existing failed row's status update.
   Throws `PaymentSendError` if the transaction isn't retryable.
-  `options.allowSelfPayment` works like the `send` parameter. Takes no
+  `options.allowSelfPayment` and `options.feeLimitSats` work like the `send`
+  parameters (`feeLimitSats` caps routing fees; unset, the node gets 2^32 sats). Takes no
   password — it reads the wallet's macaroon from the send cache (filled by
   `prepareSend` or `send`) and fails when nothing is cached.
 - The live `send` path resolves a **prepare** step (wallet send context →

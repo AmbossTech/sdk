@@ -29,11 +29,11 @@ import type {
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
 /**
- * Fee limit sent to LND/litd for every send. Fixed at 2^32 sats — far beyond
+ * Fee limit sent to LND/litd when the caller sets none. 2^32 sats — far beyond
  * any real routing fee — so the node never rejects a payment for lacking a
- * fee limit, without exposing fee-limit configuration to callers.
+ * fee limit.
  */
-const FEE_LIMIT_SATS = '4294967296';
+const DEFAULT_FEE_LIMIT_SATS = '4294967296';
 
 /**
  * Taproot asset group keys come from GraphQL as hex (a 33-byte compressed
@@ -164,7 +164,7 @@ export class Transactions {
    * {@link forgetSend} to drop them or to pick up rotated node credentials.
    */
   async send(params: SendParams): Promise<SendResult> {
-    const { destination, onUpdate, signal, allowSelfPayment } = params;
+    const { destination, onUpdate, signal, allowSelfPayment, feeLimitSats } = params;
     const timeoutSeconds = params.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
     if (!params.password?.trim()) {
@@ -216,6 +216,7 @@ export class Transactions {
       onUpdate,
       signal,
       allowSelfPayment,
+      feeLimitSats,
     });
 
     return { transaction, payment };
@@ -260,6 +261,7 @@ export class Transactions {
       amountSats: transaction.amount_sats ?? undefined,
       timeoutSeconds: DEFAULT_TIMEOUT_SECONDS,
       allowSelfPayment: options.allowSelfPayment,
+      feeLimitSats: options.feeLimitSats,
     });
 
     return { transaction, payment };
@@ -368,9 +370,11 @@ export class Transactions {
       onUpdate?: SendParams['onUpdate'];
       signal?: AbortSignal;
       allowSelfPayment?: boolean;
+      feeLimitSats?: string;
     },
   ): Promise<NodePaymentResult> {
     const { amountSats, timeoutSeconds, onUpdate, signal, allowSelfPayment } = options;
+    const feeLimitSats = options.feeLimitSats ?? DEFAULT_FEE_LIMIT_SATS;
     const selfPayment = allowSelfPayment ? { allow_self_payment: true } : {};
     // The node rejects `amt` for an invoice that encodes an amount, and a retry
     // only knows the persisted `amount_sats`, so the invoice itself decides.
@@ -393,7 +397,7 @@ export class Transactions {
             payment_request: {
               payment_request: paymentRequest,
               ...(amt ? { amt } : {}),
-              fee_limit_sat: FEE_LIMIT_SATS,
+              fee_limit_sat: feeLimitSats,
               timeout_seconds: timeoutSeconds,
               ...selfPayment,
             },
@@ -405,7 +409,7 @@ export class Transactions {
           body: {
             payment_request: paymentRequest,
             ...(amt ? { amt } : {}),
-            fee_limit_sat: FEE_LIMIT_SATS,
+            fee_limit_sat: feeLimitSats,
             timeout_seconds: timeoutSeconds,
             ...selfPayment,
           },

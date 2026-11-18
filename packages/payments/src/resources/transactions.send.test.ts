@@ -242,6 +242,44 @@ describe('Transactions.send', () => {
     assert.equal((lastBody as { allow_self_payment?: boolean }).allow_self_payment, true);
   });
 
+  it('forwards feeLimitSats to LND', async () => {
+    const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph' } }]);
+    const transactions = new Transactions(fakeClient(host));
+
+    await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
+      feeLimitSats: '50',
+    });
+
+    assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '50');
+  });
+
+  it('forwards feeLimitSats to litd for a Taproot Asset wallet', async () => {
+    const host = await startNode([
+      { result: { payment_result: { status: 'SUCCEEDED', payment_hash: 'ph' } } },
+    ]);
+    const transactions = new Transactions(
+      fakeClient(
+        host,
+        'LIVE',
+        { id: 'tx1', status: 'PENDING', payment_request: FIXED_AMOUNT_BOLT11 },
+        TEAM_ID,
+        'TAPROOT_ASSET',
+      ),
+    );
+
+    await transactions.send({
+      walletId: 'w1',
+      password: PASSWORD,
+      destination: { bolt11: FIXED_AMOUNT_BOLT11 },
+      feeLimitSats: '50',
+    });
+
+    assert.equal((lastBody as SendAssetPaymentBody).payment_request.fee_limit_sat, '50');
+  });
+
   it('accepts any non-empty sandbox password and returns payment: null', async () => {
     // No node should be contacted for sandbox — point at an unroutable host
     // so any accidental node call would fail the test.
