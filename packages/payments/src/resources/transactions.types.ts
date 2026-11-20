@@ -33,7 +33,7 @@ export interface PrepareSendParams {
   /** Wallet to send from. */
   walletId: string;
   /**
-   * Team password — used to decrypt the node admin macaroon in-process.
+   * Vault password — used to decrypt the node admin macaroon in-process.
    * Required for live wallets. Ignored for sandbox wallets, where the backend
    * settles the transaction itself and no node payment is executed.
    */
@@ -66,7 +66,7 @@ export type PreparedSend =
 export interface SendParams extends PrepareSendParams {
   /**
    * Password required for every send so sandbox matches the production call
-   * shape. Live sends require the real team password; sandbox accepts any
+   * shape. Live sends require the real vault password; sandbox accepts any
    * non-empty value because settlement does not use it. Not checked while
    * credentials for the wallet are cached.
    */

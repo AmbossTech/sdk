@@ -11,7 +11,7 @@
  *  2. If WALLET_ID is set, mints a Lightning invoice via transactions.createReceive
  *     and prints the BOLT11 payment_request to pay.
  *
- * Unlike sending, receiving needs no team password or macaroon — the backend
+ * Unlike sending, receiving needs no vault password or macaroon — the backend
  * mints the invoice on the node. Works the same for sandbox and live wallets.
  *
  * Copy examples/.env.example -> examples/.env and fill it in. Do NOT commit .env.

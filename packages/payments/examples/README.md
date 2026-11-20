@@ -44,7 +44,7 @@ pnpm exec tsx --env-file=examples/.env examples/send.ts
 
 1. **Always** lists your environments and wallets — a read-only check that the
    API key works.
-2. **If** `WALLET_ID`, `TEAM_PASSWORD`, and a destination are set, performs a
+2. **If** `WALLET_ID`, `VAULT_PASSWORD`, and a destination are set, performs a
    real payment via `payments.transactions.send`.
 
 Destinations (set one):
@@ -53,7 +53,7 @@ Destinations (set one):
 - `LIGHTNING_ADDRESS` + `AMOUNT_SATS` — pay a Lightning address.
 
 A non-empty password is mandatory for both sandbox and live sends. Live wallets
-require the real team password, which decrypts the node admin macaroon locally
+require the real vault password, which decrypts the node admin macaroon locally
 and is never sent to the API. Sandbox accepts any non-empty value such as
 `Password123` because settlement does not use it; requiring the field keeps the
 call shape identical to production. See `.env.example` for every supported
@@ -97,7 +97,7 @@ pnpm exec tsc --noEmit -p tsconfig.examples.cjs.json
 2. **If** `WALLET_ID` is set, mints a Lightning invoice via
    `payments.transactions.createReceive` and prints the BOLT11 `payment_request`.
 
-Receiving needs no team password or macaroon and works the same for sandbox and
+Receiving needs no vault password or macaroon and works the same for sandbox and
 live wallets. Set `RECEIVE_AMOUNT_SATS` (default `1000`) and optionally
 `RECEIVE_DESCRIPTION`.
 

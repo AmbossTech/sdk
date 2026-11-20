@@ -3,7 +3,7 @@ import { deriveMasterKey } from './argon2.js';
 import { nip44Decrypt } from './nip44.js';
 
 export interface DecryptAdminMacaroonParams {
-  /** Team password supplied by the SDK caller. */
+  /** Vault password supplied by the SDK caller. */
   password: string;
   /** Team id — the Argon2 salt. */
   teamId: string;
@@ -36,7 +36,7 @@ export async function decryptAdminMacaroon(params: DecryptAdminMacaroonParams): 
     });
   } catch (err) {
     throw new DecryptionError(
-      'Failed to decrypt the admin macaroon. Check that the team password is correct.',
+      'Failed to decrypt the admin macaroon. Check that the vault password is correct.',
       err,
     );
   }
@@ -63,7 +63,7 @@ export function decryptAdminMacaroonWithMasterKey(
     return nip44Decrypt(encryptedMacaroon, symmetricKey);
   } catch (err) {
     throw new DecryptionError(
-      'Failed to decrypt the admin macaroon. Check that the team password is correct.',
+      'Failed to decrypt the admin macaroon. Check that the vault password is correct.',
       err,
     );
   }

@@ -8,7 +8,7 @@
  *
  * Behaviour:
  *  1. Always lists your environments + wallets (a read-only check that the API key works).
- *  2. If WALLET_ID + TEAM_PASSWORD + a destination are set, performs a real send.
+ *  2. If WALLET_ID + VAULT_PASSWORD + a destination are set, performs a real send.
  *
  * Copy examples/.env.example -> examples/.env and fill it in. Do NOT commit .env.
  */
@@ -71,14 +71,14 @@ async function main(): Promise<void> {
   // 2. Optional send.
   const destination = resolveDestination();
   const walletId = process.env.WALLET_ID;
-  const password = process.env.TEAM_PASSWORD;
+  const password = process.env.VAULT_PASSWORD;
 
-  // Every send requires TEAM_PASSWORD so sandbox exercises the production
+  // Every send requires VAULT_PASSWORD so sandbox exercises the production
   // call shape. Sandbox accepts any non-empty placeholder because settlement
-  // does not use the value; live sends require the real team password.
+  // does not use the value; live sends require the real vault password.
   if (!walletId || !password || !destination) {
     console.log(
-      '\nSkipping send — set WALLET_ID, TEAM_PASSWORD, and a destination ' +
+      '\nSkipping send — set WALLET_ID, VAULT_PASSWORD, and a destination ' +
         '(BOLT11, or LIGHTNING_ADDRESS + AMOUNT_SATS) to send.',
     );
     return;
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
     console.log('transaction:', JSON.stringify(result.transaction, null, 2));
   } catch (error) {
     if (error instanceof DecryptionError) {
-      console.error('\n❌ macaroon decryption failed — check TEAM_PASSWORD:', error.message);
+      console.error('\n❌ macaroon decryption failed — check VAULT_PASSWORD:', error.message);
     } else if (error instanceof PaymentSendError) {
       console.error('\n❌ send failed:', error.message);
     } else {

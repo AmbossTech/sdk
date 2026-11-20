@@ -19,7 +19,7 @@ export const ARGON2_PARAMS = {
 } as const;
 
 /**
- * Derives the master key (hex) from the team password and team id.
+ * Derives the master key (hex) from the vault password and team id.
  * The team id is used as the Argon2 salt (trimmed + lowercased), matching the UI.
  */
 export async function deriveMasterKey(password: string, teamId: string): Promise<string> {
