@@ -18,6 +18,7 @@ import { isAmountlessBolt11 } from './bolt11.js';
 import { translateSdkErrors } from './sdkErrors.js';
 import { selectSendNode } from './sendNode.js';
 import type {
+  CreateReceiveInput,
   PreparedSend,
   PrepareSendParams,
   RetryPaymentOptions,
@@ -61,9 +62,15 @@ function buildCreateSendInput(params: SendParams): CreateSendTransactionInput {
     };
   }
   if (idempotencyKey) input.idempotency_key = idempotencyKey;
-  if (metadata && Object.keys(metadata).length > 0) input.metadata = JSON.stringify(metadata);
+  const serializedMetadata = serializeMetadata(metadata);
+  if (serializedMetadata) input.metadata = serializedMetadata;
 
   return input;
+}
+
+function serializeMetadata(metadata?: Record<string, string>): string | undefined {
+  if (!metadata || Object.keys(metadata).length === 0) return undefined;
+  return JSON.stringify(metadata);
 }
 
 /** Caller-supplied amount (sats) for a BOLT11 destination; only a zero-amount invoice needs one. */
@@ -135,10 +142,13 @@ export class Transactions {
     return res.payment.transaction.find_many;
   }
 
-  async createReceive(
-    input: CreateReceiveTransactionInput,
-  ): Promise<PaymentsTransactionFieldsFragment> {
-    const res = await this.#sdk.CreateReceiveTransaction({ input });
+  async createReceive(input: CreateReceiveInput): Promise<PaymentsTransactionFieldsFragment> {
+    const { metadata, ...fields } = input;
+    const apiInput: CreateReceiveTransactionInput = { ...fields };
+    const serializedMetadata = serializeMetadata(metadata);
+    if (serializedMetadata) apiInput.metadata = serializedMetadata;
+
+    const res = await this.#sdk.CreateReceiveTransaction({ input: apiInput });
     return res.payment.transaction.create_receive;
   }
 

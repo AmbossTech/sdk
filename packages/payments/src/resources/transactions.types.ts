@@ -1,5 +1,13 @@
-import type { PaymentsTransactionFieldsFragment } from '../generated/sdk.js';
+import type {
+  CreateReceiveTransactionInput,
+  PaymentsTransactionFieldsFragment,
+} from '../generated/sdk.js';
 import type { NodePaymentResult, PaymentLifecycleStatus } from '../node/types.js';
+
+export type CreateReceiveInput = Omit<CreateReceiveTransactionInput, 'metadata'> & {
+  /** Arbitrary metadata stored on the transaction and sent on its webhooks (serialized to JSON). */
+  metadata?: Record<string, string>;
+};
 
 /**
  * Where the payment goes. Provide exactly one:

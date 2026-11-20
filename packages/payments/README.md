@@ -186,11 +186,36 @@ const transaction = await payments.transactions.createReceive({
   description: 'Order #1234', // optional
   expires_in_seconds: 3600, // optional
   idempotency_key, // optional
+  metadata: { order_id: '1234' }, // optional, sent back on the webhook
 });
 
 transaction.payment_request; // the BOLT11 invoice to share with the payer
 transaction.payment_hash;
 ```
+
+To get a hosted payment page instead of showing the invoice yourself, add
+`checkout`. Pass `checkout: {}` for a page with no URLs or branding.
+
+```ts
+const transaction = await payments.transactions.createReceive({
+  wallet_id: walletId,
+  amount: '21000',
+  description: 'Order #42',
+  checkout: {
+    success_url: 'https://shop.example.com/orders/42/thanks', // optional
+    return_url: 'https://shop.example.com/cart', // optional
+    style_id: brandingId, // optional, see below
+  },
+});
+
+transaction.checkout?.url; // https://ambosspay.com/checkout/<id>, send this to the payer
+```
+
+Set up brandings in the dashboard under **Checkout** > **Create branding**. The
+branding ID is the last part of the branding page's URL.
+
+`findOne` and `findMany` also return `checkout`. It is `null` for receives made
+without one.
 
 #### Sending
 

@@ -79,7 +79,9 @@ Resource getters are lazy and call `requireServiceApiKey`:
 #### Transactions
 
 - `createReceive` mints a Lightning invoice server-side — no password or
-  macaroon needed; identical for sandbox and live wallets.
+  macaroon needed; identical for sandbox and live wallets. With `checkout` it
+  also creates a hosted checkout link (`transaction.checkout.url`);
+  `findOne`/`findMany` return `checkout` too.
 - `send` creates the send transaction, decrypts the node admin macaroon
   **in-process** using the team password (never sent to the API), then pays
   directly against the node's REST endpoint. Base-asset wallets pay over LND;

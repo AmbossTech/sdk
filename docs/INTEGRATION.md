@@ -92,6 +92,7 @@ const transaction = await payments.transactions.createReceive({
   description: 'Order #1234', // optional
   expires_in_seconds: 3600, // optional
   idempotency_key: orderId, // optional but recommended — safe retries
+  metadata: { order_id: orderId }, // optional, sent back on the webhook
 });
 
 transaction.payment_request; // BOLT11 invoice — show this to the payer (QR/link)
@@ -99,6 +100,31 @@ transaction.payment_hash; // correlate with the webhook event later
 ```
 
 Do not poll for settlement — consume the `payment.completed` webhook (Step 5).
+
+### Checkout links
+
+To send the payer to a hosted payment page instead of showing the invoice
+yourself, add `checkout` to the same call:
+
+```ts
+const transaction = await payments.transactions.createReceive({
+  wallet_id: walletId,
+  amount: '21000',
+  description: 'Order #42',
+  idempotency_key: orderId,
+  checkout: {
+    success_url: 'https://shop.example.com/orders/42/thanks', // optional
+    return_url: 'https://shop.example.com/cart', // optional
+    style_id: brandingId, // optional, from Checkout > Create branding in the dashboard
+  },
+});
+
+transaction.checkout?.url; // https://ambosspay.com/checkout/<id>
+```
+
+Pass `checkout: {}` for a page with no URLs or branding. The page lives as long
+as the invoice. Still wait for the `payment.completed` webhook before you ship
+the order: the payer might never reach your `success_url`.
 
 ## Step 4 — Send a payment
 
