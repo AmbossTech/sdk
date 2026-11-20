@@ -92,6 +92,7 @@ const transaction = await payments.transactions.createReceive({
   description: 'Order #1234', // optional
   expires_in_seconds: 3600, // optional
   idempotency_key: orderId, // optional but recommended — safe retries
+  metadata: { order_id: orderId }, // optional, sent back on the webhook
 });
 
 transaction.payment_request; // BOLT11 invoice — show this to the payer (QR/link)
@@ -114,7 +115,7 @@ const transaction = await payments.transactions.createReceive({
   checkout: {
     success_url: 'https://shop.example.com/orders/42/thanks', // optional
     return_url: 'https://shop.example.com/cart', // optional
-    style_id: brandingId, // optional, one of your team's brandings
+    style_id: brandingId, // optional, from Checkout > Create branding in the dashboard
   },
 });
 

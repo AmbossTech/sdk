@@ -186,6 +186,7 @@ const transaction = await payments.transactions.createReceive({
   description: 'Order #1234', // optional
   expires_in_seconds: 3600, // optional
   idempotency_key, // optional
+  metadata: { order_id: '1234' }, // optional, sent back on the webhook
 });
 
 transaction.payment_request; // the BOLT11 invoice to share with the payer
@@ -203,12 +204,15 @@ const transaction = await payments.transactions.createReceive({
   checkout: {
     success_url: 'https://shop.example.com/orders/42/thanks', // optional
     return_url: 'https://shop.example.com/cart', // optional
-    style_id: brandingId, // optional, one of your team's brandings
+    style_id: brandingId, // optional, see below
   },
 });
 
 transaction.checkout?.url; // https://ambosspay.com/checkout/<id>, send this to the payer
 ```
+
+Set up brandings in the dashboard under **Checkout** > **Create branding**. The
+branding ID is the last part of the branding page's URL.
 
 `findOne` and `findMany` also return `checkout`. It is `null` for receives made
 without one.

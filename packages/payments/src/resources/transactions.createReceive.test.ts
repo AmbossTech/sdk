@@ -47,3 +47,33 @@ describe('Transactions.createReceive', () => {
     assert.match(calls[0]?.document ?? '', /checkout\s*{\s*\.\.\.PaymentsCheckoutFields/);
   });
 });
+
+describe('Transactions.createReceive metadata', () => {
+  it('sends metadata as a JSON string', async () => {
+    const { client, calls } = fakeClient();
+    const transactions = new Transactions(client);
+
+    await transactions.createReceive({
+      wallet_id: 'w1',
+      amount: '1000',
+      metadata: { order_id: '42', amb_sandbox_behavior: 'complete' },
+    });
+
+    assert.deepEqual(calls[0]?.variables, {
+      input: {
+        wallet_id: 'w1',
+        amount: '1000',
+        metadata: '{"order_id":"42","amb_sandbox_behavior":"complete"}',
+      },
+    });
+  });
+
+  it('leaves metadata out when it is empty', async () => {
+    const { client, calls } = fakeClient();
+    const transactions = new Transactions(client);
+
+    await transactions.createReceive({ wallet_id: 'w1', amount: '1000', metadata: {} });
+
+    assert.deepEqual(calls[0]?.variables, { input: { wallet_id: 'w1', amount: '1000' } });
+  });
+});
