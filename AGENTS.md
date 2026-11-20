@@ -83,11 +83,11 @@ Resource getters are lazy and call `requireServiceApiKey`:
   also creates a hosted checkout link (`transaction.checkout.url`);
   `findOne`/`findMany` return `checkout` too.
 - `send` creates the send transaction, decrypts the node admin macaroon
-  **in-process** using the team password (never sent to the API), then pays
+  **in-process** using the vault password (never sent to the API), then pays
   directly against the node's REST endpoint. Base-asset wallets pay over LND;
   Taproot Asset wallets over litd. A non-empty `password` is mandatory for
   sandbox and live sends so their call shapes match. Live requires the real
-  team password; sandbox accepts any non-empty value because it does not use
+  vault password; sandbox accepts any non-empty value because it does not use
   it. The backend settles sandbox sends asynchronously (`payment` resolves
   `null`); behavior is driven by
   `metadata.amb_sandbox_behavior` (`complete` / `fail` / `expire`).

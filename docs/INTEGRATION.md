@@ -21,7 +21,7 @@ this single file to an AI coding agent as the spec for your integration.
 | Node.js ≥ 18.18             | Uses native `fetch` and `crypto`; no polyfills needed.                 |
 | Service API key             | Amboss dashboard → API keys. Sent as the `x-api-key` header.           |
 | Webhook secret              | Amboss dashboard → webhook settings (only if you consume webhooks).    |
-| Team password (sends only)  | Your team's password — used locally to decrypt the node macaroon.      |
+| Vault password (sends only)  | Your vault password — used locally to decrypt the node macaroon.      |
 
 ```bash
 npm install @ambosstech/payments   # or: pnpm add @ambosstech/payments
@@ -129,14 +129,14 @@ the order: the payer might never reach your `success_url`.
 ## Step 4 — Send a payment
 
 `send` creates the transaction, decrypts your node's admin macaroon
-**in-process** using the team password (the password never leaves your
+**in-process** using the vault password (the password never leaves your
 process and is never sent to the API), then executes the payment against the
 node and resolves with the terminal result.
 
 ```ts
 const { transaction, payment } = await payments.transactions.send({
   walletId,
-  password: process.env.TEAM_PASSWORD, // real team password for live wallets
+  password: process.env.VAULT_PASSWORD, // real vault password for live wallets
   teamId, // optional — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }
@@ -187,7 +187,7 @@ wallet at startup:
 ```ts
 const payments = new Payments({
   serviceApiKey: process.env.AMBOSS_API_KEY,
-  send: [{ walletId, password: process.env.TEAM_PASSWORD }],
+  send: [{ walletId, password: process.env.VAULT_PASSWORD }],
 });
 ```
 
@@ -196,7 +196,7 @@ or explicitly, when you want to await it:
 ```ts
 await payments.transactions.prepareSend({
   walletId,
-  password: process.env.TEAM_PASSWORD,
+  password: process.env.VAULT_PASSWORD,
 });
 ```
 
@@ -207,7 +207,7 @@ Either way the wallet's macaroon ends up decrypted in memory for `send` and
 payments.transactions.isSendReady(walletId); // true once prepared
 await payments.transactions.send({
   walletId,
-  password: process.env.TEAM_PASSWORD,
+  password: process.env.VAULT_PASSWORD,
   destination: { bolt11: 'lnbc1...' },
 });
 ```
@@ -369,7 +369,7 @@ try {
 }
 ```
 
-Send-specific: `DecryptionError` (wrong team password) and `PaymentSendError`
+Send-specific: `DecryptionError` (wrong vault password) and `PaymentSendError`
 (node rejected or failed the payment).
 
 ## Production checklist

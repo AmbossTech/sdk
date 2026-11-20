@@ -176,7 +176,7 @@ for the full transaction.
 #### Receiving
 
 `transactions.createReceive` generates a Lightning invoice for a wallet. Unlike
-sending, the backend mints the invoice on the node itself — no team password or
+sending, the backend mints the invoice on the node itself — no vault password or
 node macaroon needed, and it works the same for sandbox and live wallets.
 
 ```ts
@@ -228,7 +228,7 @@ with the terminal result.
 ```ts
 const { transaction, payment } = await payments.transactions.send({
   walletId,
-  password, // team password — used only to decrypt the node macaroon locally
+  password, // vault password — used only to decrypt the node macaroon locally
   teamId, // optional (Argon2 salt) — resolved from the wallet unless you override it
   destination: { bolt11: 'lnbc1...' },
   // or: destination: { lightningAddress: 'user@domain.com', amountSats: '1000' }

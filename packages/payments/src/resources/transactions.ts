@@ -157,7 +157,7 @@ export class Transactions {
    * of the amboss-rails send dialog.
    *
    * For **live** wallets it creates the send transaction, decrypts the node
-   * admin macaroon in-process using the team password, then executes the
+   * admin macaroon in-process using the vault password, then executes the
    * payment directly against the node's REST gateway and resolves with the
    * terminal result.
    *
@@ -246,7 +246,7 @@ export class Transactions {
    * Takes no password: it relies on {@link prepareSend} or an earlier
    * {@link send} having cached the wallet's macaroon. If nothing is cached for
    * the transaction's wallet, this fails with a `PaymentSendError` asking for a
-   * team password via `prepareSend()` first.
+   * vault password via `prepareSend()` first.
    */
   async retryPayment(paymentId: string, options: RetryPaymentOptions = {}): Promise<SendResult> {
     const transaction = await this.findOne(paymentId);
@@ -309,17 +309,17 @@ export class Transactions {
     const { walletId, password } = params;
 
     // 1. The wallet's environment type (to detect sandbox) and team id. Both are
-    //    readable with only the service API key — no team password required yet.
+    //    readable with only the service API key — no vault password required yet.
     //    Sandbox wallets settle server-side, so there is nothing to decrypt.
     const ctxRes = await this.#sdk.GetWalletSendContext({ id: walletId });
     const walletCtx = ctxRes.payment.wallet.find_one;
     if (walletCtx.environment.type === 'SANDBOX') return { kind: 'sandbox' };
 
-    // 2. Live wallet — a team password is required to decrypt the node macaroon.
+    // 2. Live wallet — a vault password is required to decrypt the node macaroon.
     //    teamId is the Argon2 salt; it comes back on the wallet above, so no
     //    separate lookup is needed. Callers may still override it explicitly.
     if (!password) {
-      throw new PaymentSendError('A team password is required to send from a live wallet.');
+      throw new PaymentSendError('A vault password is required to send from a live wallet.');
     }
     const teamId = params.teamId ?? walletCtx.team_id;
     const { masterKey, masterPasswordHash } = await createMasterPasswordHash(password, teamId);
