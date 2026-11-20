@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/AmbossTech/sdk/compare/core-v0.5.0...core-v0.6.0) (2026-11-20)
+
+
+### Features
+
+* **payments:** create checkout links with createReceive [AMB-3750] ([#61](https://github.com/AmbossTech/sdk/issues/61)) ([e8a17af](https://github.com/AmbossTech/sdk/commit/e8a17af55bd91d7899718f95c39ab9cdc3eb7a9a))
+
 ## [0.5.0](https://github.com/AmbossTech/sdk/compare/core-v0.4.0...core-v0.5.0) (2026-10-26)
 
 

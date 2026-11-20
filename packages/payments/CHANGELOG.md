@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/AmbossTech/sdk/compare/payments-v1.2.0...payments-v1.3.0) (2026-11-20)
+
+
+### Features
+
+* **payments:** create checkout links with createReceive [AMB-3750] ([#61](https://github.com/AmbossTech/sdk/issues/61)) ([e8a17af](https://github.com/AmbossTech/sdk/commit/e8a17af55bd91d7899718f95c39ab9cdc3eb7a9a))
+
 ## [1.2.0](https://github.com/AmbossTech/sdk/compare/payments-v1.1.1...payments-v1.2.0) (2026-10-26)
 
 
