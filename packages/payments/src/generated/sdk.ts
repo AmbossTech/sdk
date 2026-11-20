@@ -16,6 +16,12 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type AcceptLegalDocumentsInput = {
+  payments_acceptable_use_policy: Scalars['Boolean']['input'];
+  privacy_policy: Scalars['Boolean']['input'];
+  terms_of_service: Scalars['Boolean']['input'];
+};
+
 export type AccountBalance = {
   balances: Array<Balances>;
   financial_changes: FinancialChanges;
@@ -31,12 +37,32 @@ export type AccountInfo = {
   us_state?: Maybe<Scalars['String']['output']>;
 };
 
+export type ActivityChart = {
+  chart: Array<ActivityPeriod>;
+  id: Scalars['String']['output'];
+  interval: AggregateInterval;
+};
+
+export type ActivityCount = {
+  count: Scalars['Float']['output'];
+  id: Scalars['String']['output'];
+  type: TransactionType;
+};
+
+export type ActivityPeriod = {
+  /** Event counts by type. Types with no events are left out. */
+  counts: Array<ActivityCount>;
+  id: Scalars['String']['output'];
+  period: Scalars['String']['output'];
+};
+
 export type AddPartnerNodeInput = {
   node_id: Scalars['String']['input'];
   pubkey: Scalars['String']['input'];
 };
 
 export type AggregateInterval =
+  | 'DAY'
   | 'MONTH'
   | 'WEEK'
   | 'YEAR';
@@ -63,10 +89,16 @@ export type AssetOracleQuotes = {
   id: Scalars['String']['output'];
 };
 
-/** Trimmed Taproot Asset representation used in the taproot_assets list view. Contains only the metadata required for proof-courier setup and asset identification (symbol, group_key, universe). See BitcoinAsset for the full type, which additionally carries type, precision, and pricing. */
+export type AssignLightningAddressWalletInput = {
+  id: Scalars['String']['input'];
+  wallet_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Trimmed Taproot Asset representation used in the taproot_assets list view. Contains only the metadata required for proof-courier setup, asset identification (symbol, group_key, universe) and amount scaling (precision). See BitcoinAsset for the full type, which additionally carries type and pricing. */
 export type AvailableTaprootAsset = {
   group_key?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
+  precision: Scalars['Float']['output'];
   symbol: Scalars['String']['output'];
   universe: Scalars['String']['output'];
 };
@@ -117,6 +149,8 @@ export type BitcoinAssetAmount = {
 
 export type BitcoinAssetPrices = {
   id: Scalars['String']['output'];
+  /** Price of one display unit of the asset in satoshis, derived from the USD spot prices of the asset and BTC. Always 100000000 for the BTC base asset. */
+  sats: Scalars['String']['output'];
   usd: Scalars['String']['output'];
 };
 
@@ -129,14 +163,78 @@ export type BitcoinAssetValue = {
   usd_value: Scalars['String']['output'];
 };
 
+export type CapitalChart = {
+  /** Periods without a balance snapshot are left out */
+  chart: Array<CapitalPeriod>;
+  id: Scalars['String']['output'];
+  interval: AggregateInterval;
+};
+
+export type CapitalPeriod = {
+  /** Local balance in channels at the end of the period */
+  channels: SatoshiAmount;
+  id: Scalars['String']['output'];
+  /** On-chain funds, confirmed and pending, at the end of the period */
+  onchain: SatoshiAmount;
+  period: Scalars['String']['output'];
+};
+
 export type Charts = {
+  /** Number of events per period, using the same events as transaction_list */
+  activity: ActivityChart;
   balance: BalanceChart;
+  /** Where the funds sat over time: on-chain or in channels */
+  capital: CapitalChart;
   id: Scalars['String']['output'];
   revenue: RevenueChart;
 };
 
 export type CheckPasswordResult = {
   success: Scalars['Boolean']['output'];
+};
+
+/** Which checkout theme a logo is for */
+export type CheckoutLogoTheme =
+  | 'DARK'
+  | 'LIGHT';
+
+export type CheckoutStyleMutations = {
+  create: PaymentsCheckoutStyle;
+  delete: Scalars['Boolean']['output'];
+  remove_logo: PaymentsCheckoutStyle;
+  update: PaymentsCheckoutStyle;
+};
+
+
+export type CheckoutStyleMutationsCreateArgs = {
+  input: CreateCheckoutStyleInput;
+};
+
+
+export type CheckoutStyleMutationsDeleteArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type CheckoutStyleMutationsRemove_LogoArgs = {
+  id: Scalars['String']['input'];
+  theme?: CheckoutLogoTheme;
+};
+
+
+export type CheckoutStyleMutationsUpdateArgs = {
+  input: UpdateCheckoutStyleInput;
+};
+
+export type CheckoutStyleQueries = {
+  find_many: Array<PaymentsCheckoutStyle>;
+  find_one: PaymentsCheckoutStyle;
+  id: Scalars['String']['output'];
+};
+
+
+export type CheckoutStyleQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
 };
 
 export type ConnectLitdInput = {
@@ -154,6 +252,19 @@ export type ConnectLndInput = {
   tls_cert?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type CreateCheckoutInput = {
+  return_url?: InputMaybe<Scalars['String']['input']>;
+  /** Checkout style to show on the checkout page */
+  style_id?: InputMaybe<Scalars['String']['input']>;
+  success_url?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateCheckoutStyleInput = {
+  brand_color?: InputMaybe<Scalars['String']['input']>;
+  display_name?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+};
+
 export type CreateInvoiceInput = {
   amount_sats?: InputMaybe<Scalars['String']['input']>;
   asset_amount?: InputMaybe<Scalars['String']['input']>;
@@ -168,6 +279,25 @@ export type CreateInvoiceInput = {
 export type CreateInvoiceResult = {
   id: Scalars['String']['output'];
   payment_request: Scalars['String']['output'];
+};
+
+export type CreateLightningAddressInput = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  environment_id: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  wallet_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateLoopInSwapInput = {
+  amount_sat: Scalars['Int']['input'];
+  transaction_id: Scalars['String']['input'];
+};
+
+export type CreatePaymentDestinationInput = {
+  currency?: InputMaybe<PaymentDestinationCurrency>;
+  environment_id: Scalars['String']['input'];
+  label: Scalars['String']['input'];
+  lightning_address?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreatePaymentsEnvironmentInput = {
@@ -187,8 +317,14 @@ export type CreatePaymentsWalletInput = {
   name: Scalars['String']['input'];
 };
 
+export type CreateReceiveBolt11Input = {
+  description_hash?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateReceiveTransactionInput = {
   amount: Scalars['String']['input'];
+  bolt11?: InputMaybe<CreateReceiveBolt11Input>;
+  checkout?: InputMaybe<CreateCheckoutInput>;
   description?: InputMaybe<Scalars['String']['input']>;
   expires_in_seconds?: InputMaybe<Scalars['Int']['input']>;
   idempotency_key?: InputMaybe<Scalars['String']['input']>;
@@ -198,6 +334,7 @@ export type CreateReceiveTransactionInput = {
 
 export type CreateSendTransactionInput = {
   address?: InputMaybe<SendByAddress>;
+  destination?: InputMaybe<SendByDestination>;
   idempotency_key?: InputMaybe<Scalars['String']['input']>;
   metadata?: InputMaybe<Scalars['String']['input']>;
   request?: InputMaybe<SendByRequest>;
@@ -217,6 +354,17 @@ export type CreateServiceApiKeyInput = {
 export type CreateServiceApiKeyResult = {
   key: ServiceApiKey;
   plaintext_key: Scalars['String']['output'];
+};
+
+export type CreateSwapInput = {
+  /** Payer address on the same chain. A late or short payment goes back here. */
+  refund_address: Scalars['String']['input'];
+  /** Only "USDT" for now */
+  source_asset: Scalars['String']['input'];
+  /** Only "tron" for now */
+  source_chain: Scalars['String']['input'];
+  /** The receive the swap pays */
+  transaction_id: Scalars['String']['input'];
 };
 
 export type CreateWebhookEndpointInput = {
@@ -253,6 +401,7 @@ export type DateRangeInput = {
 };
 
 export type DeployManagedNode = {
+  node_id: Scalars['String']['output'];
   success: Scalars['Boolean']['output'];
 };
 
@@ -293,6 +442,8 @@ export type DeployedNodeState =
   | 'CREATED'
   | 'DELETED'
   | 'DELETION_INITIATED'
+  | 'PROVISIONED'
+  | 'PROVISIONING_FAILED'
   | 'WAITING_FOR_ACTIVATION'
   | 'WAITING_FOR_CREDENTIALS'
   | 'WAITING_FOR_DEPOSIT'
@@ -306,6 +457,39 @@ export type DeployedNodeType =
 export type DepositStats = {
   first_deposit?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
+};
+
+export type DestinationMutations = {
+  create: PaymentDestination;
+  delete: Scalars['Boolean']['output'];
+  id: Scalars['String']['output'];
+  update: PaymentDestination;
+};
+
+
+export type DestinationMutationsCreateArgs = {
+  input: CreatePaymentDestinationInput;
+};
+
+
+export type DestinationMutationsDeleteArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type DestinationMutationsUpdateArgs = {
+  input: UpdatePaymentDestinationInput;
+};
+
+export type DestinationQueries = {
+  find_many: FindManyPaymentDestinations;
+  find_one: PaymentDestination;
+  id: Scalars['String']['output'];
+};
+
+
+export type DestinationQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
 };
 
 export type DisableTaprootAssetsInput = {
@@ -370,6 +554,30 @@ export type FindManyEnvironments = {
   list: Array<SimplePaymentsEnvironment>;
 };
 
+export type FindManyLightningAddresses = {
+  /** Lightning addresses visible to the caller: team-wide for JWT, environment-wide for API keys */
+  count: Scalars['Int']['output'];
+  id: Scalars['String']['output'];
+  list: Array<LightningAddress>;
+  /** Most Lightning addresses a team can have */
+  max: Scalars['Int']['output'];
+};
+
+
+export type FindManyLightningAddressesListArgs = {
+  environment_id: Scalars['String']['input'];
+};
+
+export type FindManyPaymentDestinations = {
+  id: Scalars['String']['output'];
+  list: Array<PaymentDestination>;
+};
+
+
+export type FindManyPaymentDestinationsListArgs = {
+  environment_id: Scalars['String']['input'];
+};
+
 export type FindManyTransactions = {
   id: Scalars['String']['output'];
   list: Array<SimplePaymentsTransaction>;
@@ -404,6 +612,10 @@ export type FindManyWebhookEvents = {
   total_count: Scalars['Int']['output'];
 };
 
+export type FindOneTransactionLightningInput = {
+  payment_hash?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type Funds = {
   available: SatoshiAmount;
   earnings: SatoshiAmount;
@@ -418,12 +630,86 @@ export type IncreaseWithdrawalInput = {
   password_hash?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type Lease = {
+  closed_at?: Maybe<Scalars['String']['output']>;
+  /** Minimum number of blocks the channel is leased for */
+  duration_blocks: Scalars['Float']['output'];
+  /** Estimated end of the lease: open time plus duration_blocks at ten minutes per block */
+  expected_end?: Maybe<Scalars['String']['output']>;
+  /** Fee received for the lease */
+  fee: SatoshiAmount;
+  id: Scalars['String']['output'];
+  opened_at?: Maybe<Scalars['String']['output']>;
+  /** Channel size sold */
+  size: SatoshiAmount;
+  sold_at: Scalars['String']['output'];
+  /** PENDING until the channel opens, ACTIVE while it is open, CLOSED after */
+  status: LeaseStatus;
+};
+
+export type LeaseStatus =
+  | 'ACTIVE'
+  | 'CLOSED'
+  | 'PENDING';
+
+export type LegalAcceptance = {
+  id: Scalars['String']['output'];
+  payments_acceptable_use_policy: Scalars['Boolean']['output'];
+  privacy_policy: Scalars['Boolean']['output'];
+  terms_of_service: Scalars['Boolean']['output'];
+};
+
+export type LightningAddress = {
+  created_at: Scalars['String']['output'];
+  /** Shown in the payer's wallet. Null means the default text: Payment to name@domain */
+  description?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  updated_at: Scalars['String']['output'];
+  wallet_id?: Maybe<Scalars['String']['output']>;
+};
+
+export type LightningAddressMutations = {
+  assign_wallet: LightningAddress;
+  create: LightningAddress;
+  update_description: LightningAddress;
+};
+
+
+export type LightningAddressMutationsAssign_WalletArgs = {
+  input: AssignLightningAddressWalletInput;
+};
+
+
+export type LightningAddressMutationsCreateArgs = {
+  input: CreateLightningAddressInput;
+};
+
+
+export type LightningAddressMutationsUpdate_DescriptionArgs = {
+  input: UpdateLightningAddressDescriptionInput;
+};
+
+export type LightningAddressQueries = {
+  find_many: FindManyLightningAddresses;
+  find_one: LightningAddress;
+  id: Scalars['String']['output'];
+};
+
+
+export type LightningAddressQueriesFind_OneArgs = {
+  id: Scalars['String']['input'];
+};
+
 export type LiquidityProvider = {
   assets?: Maybe<LiquidityProviderAssets>;
+  /** @deprecated Snapshot history is no longer shown. Use charts.balance and funds instead. */
   balances: AccountBalance;
   charts: Charts;
   funds: Funds;
   id: Scalars['String']['output'];
+  /** Every channel sale of this account, newest first */
+  leases: Array<Lease>;
   node_id: Scalars['String']['output'];
   revenue: Revenue;
   stats: Stats;
@@ -448,6 +734,8 @@ export type LiquidityProviderAssets = {
 
 export type LiquidityProviderInput = {
   from?: InputMaybe<Scalars['String']['input']>;
+  /** Chart bucket size. When omitted it is derived from the date range. */
+  interval?: InputMaybe<AggregateInterval>;
   node_id?: InputMaybe<Scalars['String']['input']>;
   to?: InputMaybe<Scalars['String']['input']>;
 };
@@ -510,6 +798,16 @@ export type LndSockets = {
   rest: Scalars['String']['output'];
 };
 
+export type LoopInSwap = {
+  /** On-chain address for the payer to send to */
+  address: Scalars['String']['output'];
+  /** What lands on the node over Lightning, after the swap fee */
+  lightning_amount_sat: Scalars['Int']['output'];
+  onchain_amount_sat: Scalars['Int']['output'];
+  swap_fee_sat: Scalars['Int']['output'];
+  swap_id: Scalars['String']['output'];
+};
+
 export type MacaroonEncryptionType =
   | 'CLIENT'
   | 'SERVER';
@@ -523,10 +821,16 @@ export type ManagedNodeType =
   | 'FULLY_MANAGED'
   | 'THIRD_PARTY';
 
+export type MintStreamTokenInput = {
+  id: Scalars['String']['input'];
+  scope: StreamTokenScope;
+};
+
 export type Mutation = {
   credentials: CredentialMutations;
   node: NodeMutations;
   payment: PaymentMutations;
+  public: PublicMutations;
   service_api_key: ServiceApiKeyMutations;
   user: UserMutations;
 };
@@ -643,6 +947,7 @@ export type NodeMutationsDeactivateArgs = {
 
 
 export type NodeMutationsDeployArgs = {
+  network?: InputMaybe<DeployedNodeNetwork>;
   type?: Scalars['String']['input'];
 };
 
@@ -750,21 +1055,86 @@ export type PartnerNodeList = {
   list: Array<PartnerNode>;
 };
 
+export type PaymentDestination = {
+  created_at: Scalars['String']['output'];
+  currency?: Maybe<PaymentDestinationCurrency>;
+  id: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  updated_at: Scalars['String']['output'];
+  value: PaymentDestinationValueObject;
+};
+
+/** Fiat currency associated with a payment destination. */
+export type PaymentDestinationCurrency =
+  | 'EUR'
+  | 'MXN'
+  | 'USD';
+
+export type PaymentDestinationValueObject = {
+  lightning_address?: Maybe<Scalars['String']['output']>;
+};
+
+export type PaymentInfoQueries = {
+  /** Cached BTC price in USD. New receives read the same cache for exchange_rate, so a receive created after the hourly refresh saves a newer price. Null when no price is available. */
+  btc_usd_price?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  live_setup: PaymentLiveSetup;
+  pricing: PaymentsPricing;
+};
+
+export type PaymentLiveSetup = {
+  active_subscription: Scalars['Boolean']['output'];
+  id: Scalars['String']['output'];
+};
+
 export type PaymentMutations = {
+  checkout_style: CheckoutStyleMutations;
+  destination: DestinationMutations;
   environment: EnvironmentMutations;
   id: Scalars['String']['output'];
+  lightning_address: LightningAddressMutations;
+  stream_token: StreamTokenMutations;
   transaction: TransactionMutations;
   wallet: WalletMutations;
   webhook_endpoint: WebhookEndpointMutations;
 };
 
 export type PaymentQueries = {
+  checkout_style: CheckoutStyleQueries;
+  destination: DestinationQueries;
   environment: EnvironmentQueries;
   id: Scalars['String']['output'];
+  info: PaymentInfoQueries;
+  lightning_address: LightningAddressQueries;
   transaction: TransactionQueries;
   wallet: WalletQueries;
   webhook_endpoint: WebhookEndpointQueries;
   webhook_event: WebhookEventQueries;
+};
+
+export type PaymentsCheckout = {
+  id: Scalars['String']['output'];
+  return_url?: Maybe<Scalars['String']['output']>;
+  style_id?: Maybe<Scalars['String']['output']>;
+  success_url?: Maybe<Scalars['String']['output']>;
+  /** Link to send to the customer to pay this checkout */
+  url?: Maybe<Scalars['String']['output']>;
+};
+
+/** How a checkout page looks. A checkout created with style_id uses it. */
+export type PaymentsCheckoutStyle = {
+  /** Hex colour like #ff0080, used for the pay button */
+  brand_color?: Maybe<Scalars['String']['output']>;
+  created_at: Scalars['String']['output'];
+  /** Shown to the customer in the checkout header */
+  display_name?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  /** Shown instead of logo_url when the checkout page is dark. Without it, the dark page shows logo_url. */
+  logo_dark_url?: Maybe<Scalars['String']['output']>;
+  logo_url?: Maybe<Scalars['String']['output']>;
+  /** Shown only to the merchant, to tell checkout styles apart */
+  name: Scalars['String']['output'];
 };
 
 /** Full environment record, returned when fetching a single environment. */
@@ -781,10 +1151,27 @@ export type PaymentsEnvironmentType =
   | 'LIVE'
   | 'SANDBOX';
 
+export type PaymentsOnboarding = {
+  business_name: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  industry: Scalars['String']['output'];
+  intended_payment_usage: Scalars['String']['output'];
+  /** ISO 3166-1 alpha-2 country code */
+  jurisdiction: Scalars['String']['output'];
+  submitted_at: Scalars['String']['output'];
+  website: Scalars['String']['output'];
+};
+
+export type PaymentsPricing = {
+  platform_fee_usd_cents: Scalars['Float']['output'];
+  volume_fee_bps: Scalars['Float']['output'];
+};
+
 export type PaymentsTransaction = {
   amount: BitcoinAssetAmount;
   amount_sats?: Maybe<Scalars['String']['output']>;
   asset: BitcoinAsset;
+  checkout?: Maybe<PaymentsCheckout>;
   created_at: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
   direction: PaymentsTransactionDirection;
@@ -795,10 +1182,13 @@ export type PaymentsTransaction = {
   fee?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   idempotency_key: Scalars['String']['output'];
+  /** True for a FAILED send whose payment_request has not expired yet, so the same invoice can be paid again. */
+  is_retryable: Scalars['Boolean']['output'];
   metadata?: Maybe<Scalars['String']['output']>;
   node_id?: Maybe<Scalars['String']['output']>;
   payment_hash?: Maybe<Scalars['String']['output']>;
   payment_request?: Maybe<Scalars['String']['output']>;
+  preimage?: Maybe<Scalars['String']['output']>;
   settle_amount?: Maybe<BitcoinAssetAmount>;
   /** @deprecated Use settle_amount instead. */
   settle_amount_sats?: Maybe<Scalars['String']['output']>;
@@ -884,6 +1274,17 @@ export type PublicAssetQueriesSupportedArgs = {
   input?: InputMaybe<SupportedAssetsInput>;
 };
 
+export type PublicMutations = {
+  /** Start a swap that pays a receive. Needs no login: the payer calls it. */
+  create_swap: Swap;
+  id: Scalars['String']['output'];
+};
+
+
+export type PublicMutationsCreate_SwapArgs = {
+  input: CreateSwapInput;
+};
+
 export type PublicQueries = {
   assets: PublicAssetQueries;
   id: Scalars['String']['output'];
@@ -935,6 +1336,11 @@ export type RemovePartnerNodeInput = {
   partner_id: Scalars['String']['input'];
 };
 
+export type RenamePaymentsWalletInput = {
+  id: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+};
+
 export type Revenue = {
   id: Scalars['String']['output'];
   liquidity: SatoshiAmount;
@@ -948,9 +1354,17 @@ export type RevenueChart = {
 };
 
 export type RevenuePeriod = {
+  /** Price of channels bought on the Magma marketplace, by order date */
+  channel_purchase_costs: SatoshiAmount;
+  /** Number of successful routed payments in the period */
+  forwards: Scalars['Float']['output'];
   id: Scalars['String']['output'];
   liquidity: SatoshiAmount;
+  /** Fees paid for confirmed on-chain transactions in the period */
+  onchain_costs: SatoshiAmount;
   period: Scalars['String']['output'];
+  /** Amount forwarded by successful routed payments in the period */
+  routed_volume: SatoshiAmount;
   routing: SatoshiAmount;
 };
 
@@ -969,6 +1383,11 @@ export type SatoshiAmount = {
 export type SendByAddress = {
   amount: Scalars['String']['input'];
   lightning_address: Scalars['String']['input'];
+};
+
+export type SendByDestination = {
+  amount: Scalars['String']['input'];
+  payment_destination_id: Scalars['String']['input'];
 };
 
 export type SendByRequest = {
@@ -1074,15 +1493,18 @@ export type SimplePaymentsEnvironment = {
   wallet_count: Scalars['Int']['output'];
 };
 
-/** Trimmed transaction representation returned in list views. Contains core transaction fields (amount, asset, status, direction, fee, description). See PaymentsTransaction for the full type, which additionally includes idempotency_key, events, error, exchange_rate, payment_hash, payment_request, node_id, and related computed fields. */
+/** Trimmed transaction representation returned in list views. Contains core transaction fields (amount, asset, status, direction, fee, description, is_retryable). See PaymentsTransaction for the full type, which additionally includes idempotency_key, events, error, exchange_rate, payment_hash, payment_request, node_id, and related computed fields. */
 export type SimplePaymentsTransaction = {
   amount: BitcoinAssetAmount;
   asset: BitcoinAsset;
+  checkout?: Maybe<PaymentsCheckout>;
   created_at: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
   direction: PaymentsTransactionDirection;
   fee?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
+  /** True for a FAILED send whose payment_request has not expired yet, so the same invoice can be paid again. */
+  is_retryable: Scalars['Boolean']['output'];
   metadata?: Maybe<Scalars['String']['output']>;
   settled_at?: Maybe<Scalars['String']['output']>;
   status: PaymentsTransactionStatus;
@@ -1156,6 +1578,26 @@ export type StorePasswordResult = {
   success: Scalars['Boolean']['output'];
 };
 
+export type StreamToken = {
+  expires_at: Scalars['String']['output'];
+  token: Scalars['String']['output'];
+};
+
+export type StreamTokenMutations = {
+  id: Scalars['String']['output'];
+  mint: StreamToken;
+};
+
+
+export type StreamTokenMutationsMintArgs = {
+  input: MintStreamTokenInput;
+};
+
+export type StreamTokenScope =
+  | 'ENVIRONMENT'
+  | 'TRANSACTION'
+  | 'WALLET';
+
 export type StripeCardMethod = {
   brand: Scalars['String']['output'];
   country: Scalars['String']['output'];
@@ -1176,6 +1618,15 @@ export type StripePaymentMethod = {
   created_at: Scalars['String']['output'];
   id: Scalars['String']['output'];
   type: Scalars['String']['output'];
+};
+
+export type SubmitPaymentsOnboardingInput = {
+  business_name: Scalars['String']['input'];
+  industry: Scalars['String']['input'];
+  intended_payment_usage: Scalars['String']['input'];
+  /** ISO 3166-1 alpha-2 country code */
+  jurisdiction: Scalars['String']['input'];
+  website: Scalars['String']['input'];
 };
 
 export type SubscriptionQueries = {
@@ -1207,6 +1658,19 @@ export type SupportedAssetsInput = {
   page?: InputMaybe<PageInput>;
 };
 
+export type Swap = {
+  /** Exact amount to send, in the asset base unit (USDT on Tron has 6 decimals) */
+  amount_in: Scalars['String']['output'];
+  /** Address for the payer to send to */
+  deposit_address: Scalars['String']['output'];
+  /** Memo the payer must add, on chains that need one */
+  deposit_memo?: Maybe<Scalars['String']['output']>;
+  /** When this quote ends. The payer must send before then. */
+  expires_at: Scalars['String']['output'];
+  source_asset: Scalars['String']['output'];
+  source_chain: Scalars['String']['output'];
+};
+
 export type SwapTransactionType =
   | 'PURCHASE'
   | 'SALE';
@@ -1224,16 +1688,25 @@ export type TaprootAssetsQuery = {
 
 export type Team = {
   encrypted_symmetric_key?: Maybe<Scalars['String']['output']>;
+  has_password: Scalars['Boolean']['output'];
   id: Scalars['String']['output'];
   members: Array<TeamMember>;
   month_to_date_payment_volume_sats: Scalars['String']['output'];
   password_hash?: Maybe<Scalars['String']['output']>;
+  payments_onboarding_status: TeamPaymentsOnboardingStatus;
 };
 
 export type TeamMember = {
   email?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   is_master: Scalars['Boolean']['output'];
+};
+
+export type TeamPaymentsOnboardingStatus = {
+  id: Scalars['String']['output'];
+  is_complete: Scalars['Boolean']['output'];
+  is_owner: Scalars['Boolean']['output'];
+  owner_email?: Maybe<Scalars['String']['output']>;
 };
 
 export type TermsOfService = {
@@ -1320,9 +1793,15 @@ export type TransactionMetadata = {
 };
 
 export type TransactionMutations = {
+  create_loop_in_swap: LoopInSwap;
   create_receive: PaymentsTransaction;
   create_send: PaymentsTransaction;
   id: Scalars['String']['output'];
+};
+
+
+export type TransactionMutationsCreate_Loop_In_SwapArgs = {
+  input: CreateLoopInSwapInput;
 };
 
 
@@ -1348,7 +1827,8 @@ export type TransactionQueriesFind_ManyArgs = {
 
 
 export type TransactionQueriesFind_OneArgs = {
-  id: Scalars['String']['input'];
+  id?: InputMaybe<Scalars['String']['input']>;
+  lightning?: InputMaybe<FindOneTransactionLightningInput>;
 };
 
 export type TransactionStatus =
@@ -1363,6 +1843,28 @@ export type TransactionType =
   | 'DEPOSIT'
   | 'ROUTING'
   | 'WITHDRAW';
+
+export type UpdateCheckoutStyleInput = {
+  /** Omit to keep the current colour, or null to remove it */
+  brand_color?: InputMaybe<Scalars['String']['input']>;
+  /** Omit to keep the current display name, or null to remove it */
+  display_name?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['String']['input'];
+  /** Omit to keep the current name */
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateLightningAddressDescriptionInput = {
+  /** Send null or an empty string to go back to the default text */
+  description?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['String']['input'];
+};
+
+export type UpdatePaymentDestinationInput = {
+  currency?: InputMaybe<PaymentDestinationCurrency>;
+  id: Scalars['String']['input'];
+  label: Scalars['String']['input'];
+};
 
 export type UpdateServiceApiKeyInput = {
   name: Scalars['String']['input'];
@@ -1386,6 +1888,7 @@ export type User = {
   liquidity_provider?: Maybe<LiquidityProvider>;
   stripe?: Maybe<StripeInfo>;
   team: Team;
+  /** @deprecated Use verification_info.legal_acceptance instead */
   terms_of_service?: Maybe<TermsOfService>;
   verification_info: VerificationInfo;
 };
@@ -1396,10 +1899,18 @@ export type UserLiquidity_ProviderArgs = {
 };
 
 export type UserMutations = {
+  accept_legal_documents: LegalAcceptance;
+  /** @deprecated Use accept_legal_documents instead */
   accept_terms_of_service: TermsOfService;
   check_team_password: CheckPasswordResult;
   request_transaction_export: RailsTxnsExportResult;
   store_team_password_and_keys: StorePasswordResult;
+  submit_payments_onboarding: PaymentsOnboarding;
+};
+
+
+export type UserMutationsAccept_Legal_DocumentsArgs = {
+  input: AcceptLegalDocumentsInput;
 };
 
 
@@ -1418,9 +1929,15 @@ export type UserMutationsStore_Team_Password_And_KeysArgs = {
   password_hash: Scalars['String']['input'];
 };
 
+
+export type UserMutationsSubmit_Payments_OnboardingArgs = {
+  input: SubmitPaymentsOnboardingInput;
+};
+
 export type VerificationInfo = {
   account_info?: Maybe<AccountInfo>;
   id: Scalars['String']['output'];
+  legal_acceptance: LegalAcceptance;
   status: VerificationStatus;
 };
 
@@ -1433,6 +1950,7 @@ export type WalletMutations = {
   create: PaymentsWallet;
   delete: Scalars['Boolean']['output'];
   id: Scalars['String']['output'];
+  rename: PaymentsWallet;
 };
 
 
@@ -1443,6 +1961,11 @@ export type WalletMutationsCreateArgs = {
 
 export type WalletMutationsDeleteArgs = {
   id: Scalars['String']['input'];
+};
+
+
+export type WalletMutationsRenameArgs = {
+  input: RenamePaymentsWalletInput;
 };
 
 export type WalletNodePermissions = {
@@ -1587,39 +2110,41 @@ export type DeleteEnvironmentMutationVariables = Exact<{
 
 export type DeleteEnvironmentMutation = { payment: { environment: { delete: boolean } } };
 
-export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
+export type PaymentsCheckoutFieldsFragment = { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null };
 
-export type SimplePaymentsTransactionFieldsFragment = { id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } };
+export type PaymentsTransactionFieldsFragment = { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null };
 
-export type FindManyTransactionsFieldsFragment = { total_count: number, list: Array<{ id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } }>, pagination: { limit: number, offset: number } };
+export type SimplePaymentsTransactionFieldsFragment = { id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null };
+
+export type FindManyTransactionsFieldsFragment = { total_count: number, list: Array<{ id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null }>, pagination: { limit: number, offset: number } };
 
 export type GetTransactionQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetTransactionQuery = { payment: { transaction: { find_one: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
+export type GetTransactionQuery = { payment: { transaction: { find_one: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null } } } };
 
 export type ListTransactionsQueryVariables = Exact<{
   input: ListTransactionsInput;
 }>;
 
 
-export type ListTransactionsQuery = { payment: { transaction: { find_many: { total_count: number, list: Array<{ id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } }>, pagination: { limit: number, offset: number } } } } };
+export type ListTransactionsQuery = { payment: { transaction: { find_many: { total_count: number, list: Array<{ id: string, wallet_id: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, fee?: string | null, description?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null }>, pagination: { limit: number, offset: number } } } } };
 
 export type CreateReceiveTransactionMutationVariables = Exact<{
   input: CreateReceiveTransactionInput;
 }>;
 
 
-export type CreateReceiveTransactionMutation = { payment: { transaction: { create_receive: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
+export type CreateReceiveTransactionMutation = { payment: { transaction: { create_receive: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null } } } };
 
 export type CreateSendTransactionMutationVariables = Exact<{
   input: CreateSendTransactionInput;
 }>;
 
 
-export type CreateSendTransactionMutation = { payment: { transaction: { create_send: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number } } } } };
+export type CreateSendTransactionMutation = { payment: { transaction: { create_send: { id: string, wallet_id: string, node_id?: string | null, idempotency_key: string, direction: PaymentsTransactionDirection, status: PaymentsTransactionStatus, amount_sats?: string | null, fee?: string | null, payment_hash?: string | null, payment_request?: string | null, description?: string | null, error?: string | null, expires_at?: string | null, settled_at?: string | null, created_at: string, updated_at: string, amount: { id: string, display_amount: string, full_amount: string }, asset: { id: string, symbol: string, type: BitcoinAssetType, precision: number }, checkout?: { id: string, url?: string | null, success_url?: string | null, return_url?: string | null, style_id?: string | null } | null } } } };
 
 export type GetWalletSendContextQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -1678,6 +2203,15 @@ export const SimplePaymentsEnvironmentFieldsFragmentDoc = `
   updated_at
 }
     `;
+export const PaymentsCheckoutFieldsFragmentDoc = `
+    fragment PaymentsCheckoutFields on PaymentsCheckout {
+  id
+  url
+  success_url
+  return_url
+  style_id
+}
+    `;
 export const PaymentsTransactionFieldsFragmentDoc = `
     fragment PaymentsTransactionFields on PaymentsTransaction {
   id
@@ -1707,8 +2241,11 @@ export const PaymentsTransactionFieldsFragmentDoc = `
   settled_at
   created_at
   updated_at
+  checkout {
+    ...PaymentsCheckoutFields
+  }
 }
-    `;
+    ${PaymentsCheckoutFieldsFragmentDoc}`;
 export const SimplePaymentsTransactionFieldsFragmentDoc = `
     fragment SimplePaymentsTransactionFields on SimplePaymentsTransaction {
   id
@@ -1731,8 +2268,11 @@ export const SimplePaymentsTransactionFieldsFragmentDoc = `
   settled_at
   created_at
   updated_at
+  checkout {
+    ...PaymentsCheckoutFields
+  }
 }
-    `;
+    ${PaymentsCheckoutFieldsFragmentDoc}`;
 export const FindManyTransactionsFieldsFragmentDoc = `
     fragment FindManyTransactionsFields on FindManyTransactions {
   list {

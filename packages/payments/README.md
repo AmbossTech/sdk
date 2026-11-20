@@ -192,6 +192,27 @@ transaction.payment_request; // the BOLT11 invoice to share with the payer
 transaction.payment_hash;
 ```
 
+To get a hosted payment page instead of showing the invoice yourself, add
+`checkout`. Pass `checkout: {}` for a page with no URLs or branding.
+
+```ts
+const transaction = await payments.transactions.createReceive({
+  wallet_id: walletId,
+  amount: '21000',
+  description: 'Order #42',
+  checkout: {
+    success_url: 'https://shop.example.com/orders/42/thanks', // optional
+    return_url: 'https://shop.example.com/cart', // optional
+    style_id: brandingId, // optional, one of your team's brandings
+  },
+});
+
+transaction.checkout?.url; // https://ambosspay.com/checkout/<id>, send this to the payer
+```
+
+`findOne` and `findMany` also return `checkout`. It is `null` for receives made
+without one.
+
 #### Sending
 
 `transactions.send` mirrors the dashboard send flow without the UI. It creates the

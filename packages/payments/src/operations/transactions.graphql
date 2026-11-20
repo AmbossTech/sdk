@@ -1,3 +1,11 @@
+fragment PaymentsCheckoutFields on PaymentsCheckout {
+  id
+  url
+  success_url
+  return_url
+  style_id
+}
+
 fragment PaymentsTransactionFields on PaymentsTransaction {
   id
   wallet_id
@@ -26,6 +34,9 @@ fragment PaymentsTransactionFields on PaymentsTransaction {
   settled_at
   created_at
   updated_at
+  checkout {
+    ...PaymentsCheckoutFields
+  }
 }
 
 fragment SimplePaymentsTransactionFields on SimplePaymentsTransaction {
@@ -49,6 +60,9 @@ fragment SimplePaymentsTransactionFields on SimplePaymentsTransaction {
   settled_at
   created_at
   updated_at
+  checkout {
+    ...PaymentsCheckoutFields
+  }
 }
 
 fragment FindManyTransactionsFields on FindManyTransactions {
