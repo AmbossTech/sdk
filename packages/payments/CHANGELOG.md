@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/AmbossTech/sdk/compare/payments-v1.3.0...payments-v1.3.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **payments:** call the team password the vault password ([#63](https://github.com/AmbossTech/sdk/issues/63)) ([3730864](https://github.com/AmbossTech/sdk/commit/373086489199af0cf92d126396e8df1baacfc7f7))
+
 ## [1.3.0](https://github.com/AmbossTech/sdk/compare/payments-v1.2.0...payments-v1.3.0) (2026-11-20)
 
 
