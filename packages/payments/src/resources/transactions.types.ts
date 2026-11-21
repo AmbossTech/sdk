@@ -80,7 +80,8 @@ export interface SendParams extends PrepareSendParams {
    */
   allowSelfPayment?: boolean;
   /**
-   * Most the node may spend on routing fees, in sats. Unset, the node is given
+   * Most the node may spend on routing fees, as a whole number of sats (e.g.
+   * `"50"`); anything else throws before the send is created. Unset, the node is given
    * no practical limit; set a cap for production payouts.
    */
   feeLimitSats?: string;

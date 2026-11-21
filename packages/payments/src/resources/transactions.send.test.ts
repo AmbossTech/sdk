@@ -280,6 +280,24 @@ describe('Transactions.send', () => {
     assert.equal((lastBody as SendAssetPaymentBody).payment_request.fee_limit_sat, '50');
   });
 
+  it('rejects a malformed feeLimitSats before creating a transaction', async () => {
+    const { client, ops } = withCallLog(fakeClient('http://127.0.0.1:1'));
+    const transactions = new Transactions(client);
+
+    for (const feeLimitSats of ['1%', '-5', '1.5', '']) {
+      await assert.rejects(
+        transactions.send({
+          walletId: 'w1',
+          password: PASSWORD,
+          destination: { bolt11: FIXED_AMOUNT_BOLT11 },
+          feeLimitSats,
+        }),
+        /feeLimitSats must be a whole number of sats/,
+      );
+    }
+    assert.deepEqual(ops, []);
+  });
+
   it('accepts any non-empty sandbox password and returns payment: null', async () => {
     // No node should be contacted for sandbox — point at an unroutable host
     // so any accidental node call would fail the test.

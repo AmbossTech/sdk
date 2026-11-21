@@ -36,6 +36,18 @@ const DEFAULT_TIMEOUT_SECONDS = 60;
 const DEFAULT_FEE_LIMIT_SATS = '4294967296';
 
 /**
+ * The node only sees the fee limit after `create_send` has reserved the
+ * balance, so a malformed value has to fail before then.
+ */
+function assertFeeLimitSats(feeLimitSats: string | undefined): void {
+  if (feeLimitSats !== undefined && !/^\d+$/.test(feeLimitSats)) {
+    throw new PaymentSendError(
+      `feeLimitSats must be a whole number of sats, got "${feeLimitSats}".`,
+    );
+  }
+}
+
+/**
  * Taproot asset group keys come from GraphQL as hex (a 33-byte compressed
  * secp256k1 pubkey → 66 hex chars). litd's REST gateway expects the `group_key`
  * bytes field base64-encoded; passing the hex string makes the gateway
@@ -170,6 +182,7 @@ export class Transactions {
     if (!params.password?.trim()) {
       throw new PaymentSendError('A non-empty password is required to send from any wallet.');
     }
+    assertFeeLimitSats(feeLimitSats);
 
     // 1–2. Resolve the node endpoint + decrypted macaroon. A wrong password
     //      fails here, before any transaction is created.
@@ -240,6 +253,7 @@ export class Transactions {
    * team password via `prepareSend()` first.
    */
   async retryPayment(paymentId: string, options: RetryPaymentOptions = {}): Promise<SendResult> {
+    assertFeeLimitSats(options.feeLimitSats);
     const transaction = await this.findOne(paymentId);
 
     if (transaction.status !== 'FAILED') {

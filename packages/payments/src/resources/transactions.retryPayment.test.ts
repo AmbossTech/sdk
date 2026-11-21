@@ -159,6 +159,15 @@ describe('Transactions.retryPayment', () => {
     assert.equal((lastBody as { fee_limit_sat: string }).fee_limit_sat, '50');
   });
 
+  it('rejects a malformed feeLimitSats before paying', async () => {
+    const transactions = new Transactions(fakeClient('http://127.0.0.1:1'));
+
+    await assert.rejects(
+      transactions.retryPayment('tx1', { feeLimitSats: '1%' }),
+      /feeLimitSats must be a whole number of sats/,
+    );
+  });
+
   it("pays the FAILED transaction's own payment_request directly at the node, without calling create_send", async () => {
     const host = await startNode([{ result: { status: 'SUCCEEDED', payment_hash: 'ph2' } }]);
     const transactions = new Transactions(fakeClient(host));
