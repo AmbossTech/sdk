@@ -87,11 +87,19 @@ export interface SendParams extends PrepareSendParams {
    * wallet's invoice from your BTC wallet. Off by default.
    */
   allowSelfPayment?: boolean;
+  /**
+   * Most the node may spend on routing fees, as a whole number of sats (e.g.
+   * `"50"`); anything else throws before the send is created. Unset, the node is given
+   * no practical limit; set a cap for production payouts.
+   */
+  feeLimitSats?: string;
 }
 
 export interface RetryPaymentOptions {
   /** Same as {@link SendParams.allowSelfPayment}; pass it again to retry a self-payment. */
   allowSelfPayment?: boolean;
+  /** Same as {@link SendParams.feeLimitSats}. */
+  feeLimitSats?: string;
 }
 
 export interface SendResult {

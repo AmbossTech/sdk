@@ -160,6 +160,7 @@ Notes:
 - Wrong password → `DecryptionError`. Node-side failure → `PaymentSendError`.
 - If the invoice was already paid (duplicate, or a replayed `idempotencyKey`), the SDK detects the returned `COMPLETED` transaction and resolves with `payment.status === 'SUCCEEDED'` without re-paying on the node. `payment.paymentPreimage` is `undefined` in this case.
 - To pay an invoice your own team issued (for example, your Taproot Asset wallet's invoice from your BTC wallet), pass `allowSelfPayment: true`. It is off by default.
+- Pass `feeLimitSats` to cap routing fees, in sats. Without it the node is given no practical limit, so set one for production payouts (for example 1% of the amount with a small floor). `retryPayment` takes it too.
 
 **Sandbox wallets** need no node, but a non-empty `password` remains mandatory
 so the sandbox request matches production. Any non-empty value such as
