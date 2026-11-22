@@ -28,6 +28,8 @@ jobs:
     # Publish only reviewed code: a manual dispatch from another branch must not reach npm.
     if: ${{ github.ref == 'refs/heads/main' && (needs.release-please.outputs.paths_released != '[]' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
+    # npm trusts only this environment, and only main may deploy to it.
+    environment: npm
     permissions:
       contents: read
       id-token: write
