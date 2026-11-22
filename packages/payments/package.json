@@ -1,6 +1,6 @@
 {
   "name": "@ambosstech/payments",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Amboss Payments SDK: webhook verification, environments, wallets, transactions",
   "license": "MIT",
   "repository": {

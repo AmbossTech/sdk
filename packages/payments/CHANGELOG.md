@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/AmbossTech/sdk/compare/payments-v1.3.0...payments-v1.4.0) (2026-11-22)
+
+
+### Features
+
+* **payments:** optional feeLimitSats on send and retryPayment [AMB-3730] ([#59](https://github.com/AmbossTech/sdk/issues/59)) ([f5d9bce](https://github.com/AmbossTech/sdk/commit/f5d9bce460d1138238c94c129e625dcfb915a296))
+
+
+### Bug Fixes
+
+* **payments:** call the team password the vault password ([#63](https://github.com/AmbossTech/sdk/issues/63)) ([3730864](https://github.com/AmbossTech/sdk/commit/373086489199af0cf92d126396e8df1baacfc7f7))
+
 ## [1.3.0](https://github.com/AmbossTech/sdk/compare/payments-v1.2.0...payments-v1.3.0) (2026-11-20)
 
 
