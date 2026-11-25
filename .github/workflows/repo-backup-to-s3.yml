@@ -8,4 +8,3 @@ on:
 jobs:
   call-reusable-backup:
     uses: AmbossTech/.github/.github/workflows/repo-backup-to-s3.yml@main
-
